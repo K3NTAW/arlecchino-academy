@@ -1,0 +1,140 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { LessonListItem } from "../types/lesson";
+
+type RankTitle = "Fledgling" | "Apprentice" | "Agent" | "Director";
+
+type AppStore = {
+  name: string;
+  token: string | null;
+  language: "en" | "sr";
+  xp: number;
+  streak: number;
+  lessonsCompleted: number;
+  lessons: LessonListItem[];
+  completedLessonIds: number[];
+  lastActiveDate: string | null;
+  isGenerating: boolean;
+  setSession: (input: { name: string; token: string }) => void;
+  clearSession: () => void;
+  setLanguage: (language: "en" | "sr") => void;
+  setLessons: (lessons: LessonListItem[]) => void;
+  upsertLesson: (lesson: LessonListItem) => void;
+  setGenerating: (isGenerating: boolean) => void;
+  applyAttemptResult: (input: {
+    lessonId: number;
+    gainedXp: number;
+    isCorrect: boolean;
+    streakFromBackend?: number;
+  }) => void;
+};
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+export function getRankFromXp(xp: number): RankTitle {
+  if (xp >= 1500) {
+    return "Director";
+  }
+  if (xp >= 700) {
+    return "Agent";
+  }
+  if (xp >= 250) {
+    return "Apprentice";
+  }
+  return "Fledgling";
+}
+
+export function getNextRankThreshold(xp: number): number {
+  if (xp < 250) {
+    return 250;
+  }
+  if (xp < 700) {
+    return 700;
+  }
+  if (xp < 1500) {
+    return 1500;
+  }
+  return 1500;
+}
+
+export const useAppStore = create<AppStore>()(
+  persist(
+    (set, get) => ({
+      name: "",
+      token: null,
+      language: "en",
+      xp: 0,
+      streak: 0,
+      lessonsCompleted: 0,
+      lessons: [],
+      completedLessonIds: [],
+      lastActiveDate: null,
+      isGenerating: false,
+      setSession: ({ name, token }) => {
+        set({ name, token });
+      },
+      clearSession: () => {
+        set({
+          name: "",
+          token: null,
+          language: "en",
+          xp: 0,
+          streak: 0,
+          lessonsCompleted: 0,
+          lessons: [],
+          completedLessonIds: [],
+          lastActiveDate: null,
+          isGenerating: false
+        });
+      },
+      setLanguage: (language) => set({ language }),
+      setLessons: (lessons) => set({ lessons }),
+      upsertLesson: (lesson) => {
+        const current = get().lessons;
+        const existingIndex = current.findIndex((item) => item.id === lesson.id);
+        if (existingIndex >= 0) {
+          const copy = [...current];
+          copy[existingIndex] = lesson;
+          set({ lessons: copy });
+          return;
+        }
+        set({ lessons: [lesson, ...current] });
+      },
+      setGenerating: (isGenerating) => set({ isGenerating }),
+      applyAttemptResult: ({ lessonId, gainedXp, isCorrect, streakFromBackend }) => {
+        const state = get();
+        const nowDay = today();
+        let nextStreak = state.streak;
+
+        if (typeof streakFromBackend === "number") {
+          nextStreak = streakFromBackend;
+        } else if (state.lastActiveDate === nowDay) {
+          nextStreak = state.streak;
+        } else if (state.lastActiveDate) {
+          const previous = new Date(`${state.lastActiveDate}T00:00:00.000Z`);
+          const current = new Date(`${nowDay}T00:00:00.000Z`);
+          const diffDays = Math.round((current.getTime() - previous.getTime()) / 86_400_000);
+          nextStreak = diffDays === 1 ? Math.max(1, state.streak + 1) : 1;
+        } else {
+          nextStreak = 1;
+        }
+
+        const completed = new Set(state.completedLessonIds);
+        if (isCorrect) {
+          completed.add(lessonId);
+        }
+
+        set({
+          xp: state.xp + gainedXp,
+          streak: nextStreak,
+          lessonsCompleted: completed.size,
+          completedLessonIds: [...completed],
+          lastActiveDate: nowDay
+        });
+      }
+    }),
+    {
+      name: "arlecchino-academy-store"
+    }
+  )
+);
