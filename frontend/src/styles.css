@@ -864,15 +864,30 @@ code {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.55rem;
 }
 
 .lesson-step-meta small {
   color: var(--silver);
 }
 
+.lesson-step-meta-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .lesson-step-meta a {
   color: var(--ghost);
   text-decoration: none;
+}
+
+.lesson-step-skip-btn {
+  min-height: 2rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
 }
 
 .lesson-step-progress-segments {
@@ -887,6 +902,9 @@ code {
   height: 4px;
   border-radius: 999px;
   background: var(--ghost);
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .lesson-step-segment.complete {

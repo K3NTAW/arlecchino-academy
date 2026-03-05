@@ -268,6 +268,15 @@ export function LessonPage() {
     setCurrentStepIndex((index) => Math.max(0, index - 1));
   };
 
+  const jumpToStep = (index: number) => {
+    const target = Math.min(Math.max(index, 0), totalSteps - 1);
+    if (target === currentStepIndex) {
+      return;
+    }
+    setDirection(target > currentStepIndex ? 1 : -1);
+    setCurrentStepIndex(target);
+  };
+
   return (
     <motion.section
       className="lesson-step-page"
@@ -285,15 +294,36 @@ export function LessonPage() {
               <small>
                 Step {currentStepIndex + 1} of {totalSteps}
               </small>
-              <Link to="/dashboard">← Back to Dashboard</Link>
+              <div className="lesson-step-meta-actions">
+                <button
+                  type="button"
+                  className="retry-btn lesson-step-skip-btn"
+                  onClick={() => jumpToStep(currentStepIndex - 1)}
+                  disabled={currentStepIndex === 0}
+                >
+                  ← Previous
+                </button>
+                <button
+                  type="button"
+                  className="retry-btn lesson-step-skip-btn"
+                  onClick={() => jumpToStep(currentStepIndex + 1)}
+                  disabled={currentStepIndex === totalSteps - 1}
+                >
+                  Skip Ahead →
+                </button>
+                <Link to="/dashboard">← Back to Dashboard</Link>
+              </div>
             </div>
             <div className="lesson-step-progress-segments">
               {steps.map((step, index) => (
-                <span
+                <button
+                  type="button"
                   key={`${step.type}-${index}`}
+                  aria-label={`Jump to step ${index + 1}`}
                   className={`lesson-step-segment ${
                     index < currentStepIndex ? "complete" : index === currentStepIndex ? "active" : "upcoming"
                   }`}
+                  onClick={() => jumpToStep(index)}
                 />
               ))}
             </div>
