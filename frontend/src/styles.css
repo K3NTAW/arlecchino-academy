@@ -1597,84 +1597,227 @@ code {
 
 .wish-page {
   display: grid;
-  gap: 1.1rem;
+  gap: 0.9rem;
 }
 
-.wish-hero-card {
-  background: linear-gradient(135deg, color-mix(in oklab, var(--card) 84%, black 16%), color-mix(in oklab, var(--deep) 80%, black 20%));
-  border: 1px solid color-mix(in oklab, var(--border) 68%, var(--scarlet) 32%);
-  border-radius: 18px;
-  padding: 1.1rem 1.2rem;
-}
-
-.wish-hero-card small {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--rose);
-}
-
-.wish-hero-card h1 {
-  margin: 0.4rem 0 0.25rem;
-  color: var(--gold);
-}
-
-.wish-hero-card p {
-  margin: 0;
-  color: var(--silver);
-}
-
-.wish-featured {
-  margin-top: 0.8rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.42rem;
-  color: var(--ash);
-}
-
-.wish-state-grid {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.wish-state-card {
-  background: color-mix(in oklab, var(--card) 88%, black 12%);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 0.85rem;
-}
-
-.wish-state-card h2 {
-  margin: 0;
-  font-size: 0.76rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--silver);
-}
-
-.wish-state-card strong {
-  margin-top: 0.5rem;
-  display: block;
-  color: var(--ash);
-  font-size: 1rem;
-}
-
-.wish-pull-actions {
+.wish-top-rail {
   display: flex;
-  gap: 0.65rem;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: center;
 }
 
-.wish-pull-actions button {
-  border: 1px solid color-mix(in oklab, var(--border) 66%, var(--crimson) 34%);
-  background: linear-gradient(180deg, color-mix(in oklab, var(--crimson) 86%, black 14%), color-mix(in oklab, var(--scarlet) 72%, black 28%));
-  color: var(--ash);
-  border-radius: 10px;
-  padding: 0.62rem 0.85rem;
+.wish-top-tabs {
+  display: inline-flex;
+  gap: 0.45rem;
+}
+
+.wish-top-tabs button {
+  min-height: 2rem;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 84%, black 16%);
+  color: var(--silver);
+  border-radius: 999px;
+  padding: 0.32rem 0.72rem;
+  font-size: 0.78rem;
   cursor: pointer;
 }
 
+.wish-top-tabs button.is-active {
+  border-color: rgba(231, 76, 60, 0.5);
+  color: var(--ash);
+  background: linear-gradient(180deg, rgba(139, 0, 0, 0.6), rgba(26, 17, 24, 0.9));
+}
+
+.wish-top-currency {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.wish-top-currency span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--deep) 86%, black 14%);
+  padding: 0.3rem 0.55rem;
+  color: var(--ash);
+  font-size: 0.78rem;
+}
+
+.wish-banner-stage {
+  border: 1px solid color-mix(in oklab, var(--border) 65%, #7398c8 35%);
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(115, 152, 200, 0.22), transparent 45%),
+    radial-gradient(circle at 75% 18%, rgba(255, 255, 255, 0.1), transparent 35%),
+    linear-gradient(180deg, #203b57, #101a2c 58%, #0f0a12);
+  box-shadow: 0 20px 38px rgba(0, 0, 0, 0.3);
+}
+
+.wish-banner-main {
+  min-height: 390px;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 0.9rem;
+  align-items: stretch;
+}
+
+.wish-banner-copy {
+  border-radius: 16px;
+  border: 1px solid rgba(230, 209, 180, 0.26);
+  background: linear-gradient(135deg, rgba(252, 239, 220, 0.86), rgba(250, 227, 196, 0.72));
+  color: #3a2a21;
+  padding: 1.1rem;
+  display: grid;
+  align-content: start;
+  gap: 0.6rem;
+}
+
+.wish-banner-copy small {
+  width: fit-content;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #eb6b4d;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  font-size: 0.75rem;
+}
+
+.wish-banner-copy h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 3.4vw, 2.8rem);
+  line-height: 1.05;
+  color: #2f2a28;
+}
+
+.wish-banner-copy p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.52;
+  color: #453b35;
+  max-width: 58ch;
+}
+
+.wish-banner-rate-line {
+  font-weight: 600;
+  color: #b14f32 !important;
+}
+
+.wish-banner-pity-row {
+  margin-top: 0.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.wish-banner-pity-row span {
+  border-radius: 999px;
+  border: 1px solid rgba(130, 95, 60, 0.35);
+  background: rgba(255, 255, 255, 0.42);
+  padding: 0.22rem 0.5rem;
+  font-size: 0.74rem;
+  color: #3d332e;
+}
+
+.wish-banner-art {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(227, 106, 89, 0.42);
+  background: radial-gradient(circle at 20% 15%, rgba(240, 97, 78, 0.25), transparent 44%), #27121b;
+}
+
+.wish-banner-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.wish-banner-art-overlay {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(10, 6, 8, 0.4), rgba(10, 6, 8, 0.82));
+  border: 1px solid rgba(231, 76, 60, 0.4);
+  padding: 0.52rem 0.62rem;
+}
+
+.wish-banner-art-overlay strong {
+  display: block;
+  color: #f5f1ea;
+  font-size: 1.2rem;
+}
+
+.wish-banner-art-overlay span {
+  color: rgba(245, 241, 234, 0.82);
+  font-size: 0.8rem;
+}
+
+.wish-action-bar {
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, rgba(9, 16, 27, 0.52), rgba(9, 16, 27, 0.86));
+  backdrop-filter: blur(4px);
+  padding: 0.7rem 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.wish-action-meta {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.wish-action-meta button {
+  min-height: 2rem;
+  border: 1px solid rgba(224, 210, 181, 0.4);
+  background: rgba(239, 230, 210, 0.95);
+  color: #3a2d28;
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.82rem;
+}
+
+.wish-pull-actions {
+  display: inline-flex;
+  gap: 0.55rem;
+}
+
+.wish-pull-actions button {
+  min-height: 2.5rem;
+  min-width: 150px;
+  border: 1px solid rgba(224, 210, 181, 0.4);
+  background: linear-gradient(180deg, #f9f4e8, #e8dbc2);
+  color: #473935;
+  border-radius: 999px;
+  padding: 0.46rem 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.wish-pull-actions button small {
+  color: #90703d;
+  font-weight: 600;
+}
+
 .wish-pull-actions button:disabled {
-  opacity: 0.45;
+  opacity: 0.38;
   cursor: not-allowed;
 }
 
@@ -2044,8 +2187,35 @@ code {
 }
 
 @media (max-width: 900px) {
-  .wish-state-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .wish-top-rail {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wish-top-tabs,
+  .wish-top-currency {
+    flex-wrap: wrap;
+  }
+
+  .wish-banner-main {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .wish-banner-art {
+    min-height: 260px;
+  }
+
+  .wish-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wish-action-meta,
+  .wish-pull-actions {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .wish-results-grid {

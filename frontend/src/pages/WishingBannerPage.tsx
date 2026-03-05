@@ -8,6 +8,7 @@ import { preloadWishAssets } from "../features/wish/wishAssets";
 import { playWishSfx, unlockWishAudio } from "../features/wish/wishAudio";
 import { SummonOverlay } from "../features/wish/SummonOverlay";
 import { useSummonSequence } from "../features/wish/useSummonSequence";
+import { getItemPortrait } from "../features/wish/wishAssets";
 
 type PullButtonCount = 1 | 10;
 
@@ -88,51 +89,75 @@ export function WishingBannerPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="wish-hero-card">
-        <small>Event Wish</small>
-        <h1>Moment of Crimson Oath</h1>
-        <p>Spend Ember Coins to pull for Arlecchino. Pity and guarantee are persisted to your profile.</p>
-        <div className="wish-featured">
-          <Sparkles size={16} />
-          <span>Featured 5★: Arlecchino</span>
-        </div>
-      </div>
-
       {status === "loading" ? <p className="wish-status">Loading banner state...</p> : null}
       {status === "error" ? <p className="wish-status wish-error">{error ?? "Failed to load banner."}</p> : null}
       {status === "ready" && gachaState ? (
         <>
-          <section className="wish-state-grid">
-            <article className="wish-state-card">
-              <h2>Ember Coins</h2>
-              <strong>{gachaState.currency.toLocaleString("en-US")}</strong>
-            </article>
-            <article className="wish-state-card">
-              <h2>4★ Pity</h2>
-              <strong>
-                {gachaState.pity4Counter} / {gachaState.banner.pity4}
-              </strong>
-            </article>
-            <article className="wish-state-card">
-              <h2>5★ Pity</h2>
-              <strong>
-                {gachaState.pity5Counter} / {gachaState.banner.pity5}
-              </strong>
-            </article>
-            <article className="wish-state-card">
-              <h2>Featured Guarantee</h2>
-              <strong>{gachaState.guaranteedFeatured5Star ? "Ready" : "Not Active"}</strong>
-            </article>
+          <section className="wish-top-rail">
+            <div className="wish-top-tabs">
+              <button type="button" className="is-active">
+                Character Event Wish
+              </button>
+              <button type="button">Epitome Invocation</button>
+              <button type="button">Standard Wish</button>
+            </div>
+            <div className="wish-top-currency">
+              <span>
+                <Star size={14} />
+                Ember Coins {gachaState.currency.toLocaleString("en-US")}
+              </span>
+              <span>
+                <Sparkles size={14} />
+                Intertwined Fate 0
+              </span>
+            </div>
           </section>
 
-          <div className="wish-pull-actions">
-            <button type="button" disabled={!canPull(1)} onClick={() => void handlePull(1)}>
-              Pull x1 ({gachaState.banner.costPerPull})
-            </button>
-            <button type="button" disabled={!canPull(10)} onClick={() => void handlePull(10)}>
-              Pull x10 ({gachaState.banner.costPerPull * 10})
-            </button>
-          </div>
+          <section className="wish-banner-stage">
+            <article className="wish-banner-main">
+              <div className="wish-banner-copy">
+                <small>Character Event Wish</small>
+                <h1>The Hearth&apos;s Ashen Shadow</h1>
+                <p className="wish-banner-rate-line">
+                  Probability increased. Every 10 wishes guarantees at least one 4-star or higher item.
+                </p>
+                <p>
+                  5-star event-exclusive characters are only available during this banner period. Spend Ember Coins
+                  to call Arlecchino.
+                </p>
+                <div className="wish-banner-pity-row">
+                  <span>4★ pity {gachaState.pity4Counter + 1}/10</span>
+                  <span>5★ pity {gachaState.pity5Counter + 1}/90</span>
+                  <span>{gachaState.guaranteedFeatured5Star ? "Featured guaranteed next 5★" : "50/50 active"}</span>
+                </div>
+              </div>
+
+              <div className="wish-banner-art">
+                <img src={getItemPortrait("arlecchino", 5)} alt="Arlecchino featured banner art" loading="eager" />
+                <div className="wish-banner-art-overlay">
+                  <strong>Arlecchino</strong>
+                  <span>Dire Balemoon</span>
+                </div>
+              </div>
+            </article>
+
+            <footer className="wish-action-bar">
+              <div className="wish-action-meta">
+                <button type="button">Shop</button>
+                <button type="button">Details</button>
+                <button type="button">History</button>
+              </div>
+              <div className="wish-pull-actions">
+                <button type="button" disabled={!canPull(1)} onClick={() => void handlePull(1)}>
+                  Wish x1 <small>{gachaState.banner.costPerPull}</small>
+                </button>
+                <button type="button" disabled={!canPull(10)} onClick={() => void handlePull(10)}>
+                  Wish x10 <small>{gachaState.banner.costPerPull * 10}</small>
+                </button>
+              </div>
+            </footer>
+          </section>
+
           {error ? <p className="wish-status wish-error">{error}</p> : null}
 
           {lastPulls.length > 0 ? (
