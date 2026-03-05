@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@academy/shared": "workspace:*",
+    "@academy/shared": "file:../shared",
     "@monaco-editor/react": "^4.7.0",
     "framer-motion": "^12.35.0",
     "lucide-react": "^0.577.0",
