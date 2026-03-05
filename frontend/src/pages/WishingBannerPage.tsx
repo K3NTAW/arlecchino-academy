@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { GachaPullResult } from "@academy/shared";
 import { fetchGachaState, performGachaPull } from "../lib/api";
 import { useAppStore } from "../store/appStore";
+import { preloadWishAssets } from "../features/wish/wishAssets";
+import { playWishSfx, unlockWishAudio } from "../features/wish/wishAudio";
+import { SummonOverlay } from "../features/wish/SummonOverlay";
+import { useSummonSequence } from "../features/wish/useSummonSequence";
 
 type PullButtonCount = 1 | 10;
 
@@ -17,6 +21,11 @@ export function WishingBannerPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPulling, setIsPulling] = useState(false);
   const [lastPulls, setLastPulls] = useState<GachaPullResult[]>([]);
+  const summon = useSummonSequence();
+
+  useEffect(() => {
+    preloadWishAssets();
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -42,25 +51,30 @@ export function WishingBannerPage() {
 
   const canPull = useMemo(
     () => (count: PullButtonCount) => {
-      if (!gachaState || isPulling) {
+      if (!gachaState || isPulling || !summon.canStartPull) {
         return false;
       }
       return gachaState.currency >= gachaState.banner.costPerPull * count;
     },
-    [gachaState, isPulling]
+    [gachaState, isPulling, summon.canStartPull]
   );
 
   const handlePull = async (count: PullButtonCount) => {
-    if (!token || !gachaState) {
+    if (!token || !gachaState || !summon.canStartPull) {
       return;
     }
+    summon.startRequest(count);
+    unlockWishAudio();
+    playWishSfx("pullStart");
     setIsPulling(true);
     setError(null);
     try {
       const result = await performGachaPull({ token, count });
       applyGachaPull(result);
       setLastPulls(result.pulls);
+      summon.startSequence(result.pulls);
     } catch (pullError) {
+      summon.toIdle();
       setError(pullError instanceof Error ? pullError.message : "Pull failed.");
     } finally {
       setIsPulling(false);
@@ -173,6 +187,17 @@ export function WishingBannerPage() {
           </section>
         </>
       ) : null}
+      <SummonOverlay
+        phase={summon.phase}
+        pulls={summon.pulls}
+        highestRarity={summon.highestRarity}
+        revealedCount={summon.revealedCount}
+        canSkip={summon.canSkip}
+        canPullAgain={Boolean(gachaState && canPull(summon.lastPullCount))}
+        onSkip={summon.skipToSummary}
+        onClose={summon.toIdle}
+        onPullAgain={() => void handlePull(summon.lastPullCount)}
+      />
     </motion.section>
   );
 }
