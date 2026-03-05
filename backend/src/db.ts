@@ -415,6 +415,24 @@ export class DatabaseService {
       ON CONFLICT (id) DO NOTHING;
     `);
 
+    // One-time starter grant so the single user can immediately use wishes.
+    await this.pool.query(`
+      WITH grant_once AS (
+        INSERT INTO currency_events (source, amount, challenge_id, lesson_id)
+        SELECT 'grant.starter.1600', 1600, NULL, NULL
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM currency_events
+          WHERE source = 'grant.starter.1600'
+        )
+        RETURNING amount
+      )
+      UPDATE profile_progress
+      SET currency = currency + COALESCE((SELECT SUM(amount)::int FROM grant_once), 0),
+          updated_at = NOW()
+      WHERE id = 1;
+    `);
+
     await this.repairExistingCodingChallenges();
   }
 
