@@ -16,7 +16,7 @@ const fallbackPortraitByRarity: Record<WishRarity, string> = {
 
 const itemPortraitById: Record<string, string> = {
   // User-provided Pinterest reference image, backed by pinimg CDN.
-  arlecchino: "https://i.pinimg.com/736x/4e/8f/ea/4e8feae5b950944996983f045419cf58.jpg",
+  arlecchino: "https://i.pinimg.com/736x/90/d5/02/90d5026ae3e65f59e9c7277836cc0619.jpg",
   diluc: "/wish/art/cards/diluc.webp",
   keqing: "/wish/art/cards/keqing.webp",
   fischl: "/wish/art/cards/fischl.webp",
