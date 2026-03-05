@@ -1,5 +1,5 @@
-import { Flame, LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Flame, LogOut, Sparkles } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 
 export function Navbar() {
@@ -18,6 +18,10 @@ export function Navbar() {
         <span className="academy-navbar-title">House of the Hearth</span>
       </div>
       <div className="academy-navbar-right">
+        <Link className="academy-nav-link" to="/wish">
+          <Sparkles size={14} />
+          Wish
+        </Link>
         <span className="academy-player-name">{name || "Contractor"}</span>
         <div className="academy-lang-toggle">
           <button

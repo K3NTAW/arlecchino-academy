@@ -117,6 +117,55 @@ export const ChallengeAttemptResponseSchema = z.object({
   evaluation: ChallengeAttemptEvaluationSchema
 });
 
+export const GachaRaritySchema = z.union([z.literal(3), z.literal(4), z.literal(5)]);
+
+export const GachaItemSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  rarity: GachaRaritySchema,
+  featured: z.boolean().default(false),
+  type: z.literal("character").default("character")
+});
+
+export const GachaPullResultSchema = z.object({
+  item: GachaItemSchema,
+  wasPity4: z.boolean(),
+  wasPity5: z.boolean(),
+  wasFeaturedGuarantee: z.boolean()
+});
+
+export const GachaBannerSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  featuredItemName: z.string().min(1),
+  costPerPull: z.number().int().positive(),
+  rate3: z.number().min(0).max(1),
+  rate4: z.number().min(0).max(1),
+  rate5: z.number().min(0).max(1),
+  pity4: z.number().int().positive(),
+  pity5: z.number().int().positive()
+});
+
+export const GachaStateSchema = z.object({
+  banner: GachaBannerSchema,
+  currency: z.number().int().nonnegative(),
+  pity4Counter: z.number().int().nonnegative(),
+  pity5Counter: z.number().int().nonnegative(),
+  guaranteedFeatured5Star: z.boolean(),
+  history: z.array(GachaPullResultSchema)
+});
+
+export const GachaPullRequestSchema = z.object({
+  count: z.union([z.literal(1), z.literal(10)])
+});
+
+export const GachaPullResponseSchema = z.object({
+  ok: z.literal(true),
+  spentCurrency: z.number().int().nonnegative(),
+  pulls: z.array(GachaPullResultSchema).min(1),
+  state: GachaStateSchema
+});
+
 export type Lesson = z.infer<typeof LessonSchema>;
 export type Challenge = z.infer<typeof ChallengeSchema>;
 export type LessonBundle = z.infer<typeof LessonBundleSchema>;
@@ -125,3 +174,8 @@ export type ChallengeAttemptRequest = z.infer<typeof ChallengeAttemptRequestSche
 export type ChallengeAttemptResponse = z.infer<typeof ChallengeAttemptResponseSchema>;
 export type ChallengeAttemptEvaluation = z.infer<typeof ChallengeAttemptEvaluationSchema>;
 export type CodingTestResult = z.infer<typeof CodingTestResultSchema>;
+export type GachaItem = z.infer<typeof GachaItemSchema>;
+export type GachaPullResult = z.infer<typeof GachaPullResultSchema>;
+export type GachaState = z.infer<typeof GachaStateSchema>;
+export type GachaPullRequest = z.infer<typeof GachaPullRequestSchema>;
+export type GachaPullResponse = z.infer<typeof GachaPullResponseSchema>;

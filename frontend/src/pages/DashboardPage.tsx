@@ -7,6 +7,7 @@ import {
   Plus,
   ScrollText,
   ShieldAlert,
+  Sparkles,
   Swords,
   Target,
   Zap
@@ -63,7 +64,9 @@ export function DashboardPage() {
   const rank = getRankFromXp(xp);
   const nextThreshold = getNextRankThreshold(xp);
   const xpToNext = Math.max(0, nextThreshold - xp);
-  const progressPct = nextThreshold <= 0 ? 100 : Math.min(100, (xp / nextThreshold) * 100);
+  const xpPerLevel = 250;
+  const xpInCurrentLevel = ((xp % xpPerLevel) + xpPerLevel) % xpPerLevel;
+  const progressPct = Math.min(100, (xpInCurrentLevel / xpPerLevel) * 100);
   const masteryPercent = lessons.length === 0 ? 0 : Math.round((lessonsCompleted / lessons.length) * 100);
   const featuredLesson = lessons[0] ?? null;
 
@@ -190,6 +193,13 @@ export function DashboardPage() {
             <span>
               <strong>Assess Power Level</strong>
               <small>View progression and mastery trend</small>
+            </span>
+          </Link>
+          <Link to="/wish" className="dash-command-link">
+            <Sparkles size={18} />
+            <span>
+              <strong>Wishing Banner</strong>
+              <small>Spend Ember Coins for Arlecchino pulls</small>
             </span>
           </Link>
         </aside>

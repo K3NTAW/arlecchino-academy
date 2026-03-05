@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { GachaPullResponse, GachaState } from "@academy/shared";
 import type { LessonListItem } from "../types/lesson";
 
-type RankTitle = "Fledgling" | "Apprentice" | "Agent" | "Director";
+const XP_PER_LEVEL = 250;
 
 type AppStore = {
   name: string;
@@ -13,6 +14,7 @@ type AppStore = {
   streak: number;
   lessonsCompleted: number;
   lessons: LessonListItem[];
+  gachaState: GachaState | null;
   completedLessonIds: number[];
   lastActiveDate: string | null;
   isGenerating: boolean;
@@ -23,6 +25,8 @@ type AppStore = {
   upsertLesson: (lesson: LessonListItem) => void;
   setGenerating: (isGenerating: boolean) => void;
   hydrateProgress: (input: { xp: number; currency: number; streak: number }) => void;
+  setGachaState: (state: GachaState) => void;
+  applyGachaPull: (result: GachaPullResponse) => void;
   applyAttemptResult: (input: {
     lessonId: number;
     gainedXp: number;
@@ -34,30 +38,22 @@ type AppStore = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export function getRankFromXp(xp: number): RankTitle {
-  if (xp >= 1500) {
+export function getRankFromXp(xp: number): string {
+  const level = Math.floor(Math.max(0, xp) / XP_PER_LEVEL) + 1;
+  if (level >= 20) {
     return "Director";
   }
-  if (xp >= 700) {
+  if (level >= 10) {
     return "Agent";
   }
-  if (xp >= 250) {
+  if (level >= 5) {
     return "Apprentice";
   }
   return "Fledgling";
 }
 
 export function getNextRankThreshold(xp: number): number {
-  if (xp < 250) {
-    return 250;
-  }
-  if (xp < 700) {
-    return 700;
-  }
-  if (xp < 1500) {
-    return 1500;
-  }
-  return 1500;
+  return Math.floor(Math.max(0, xp) / XP_PER_LEVEL + 1) * XP_PER_LEVEL;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -71,6 +67,7 @@ export const useAppStore = create<AppStore>()(
       streak: 0,
       lessonsCompleted: 0,
       lessons: [],
+      gachaState: null,
       completedLessonIds: [],
       lastActiveDate: null,
       isGenerating: false,
@@ -87,6 +84,7 @@ export const useAppStore = create<AppStore>()(
           streak: 0,
           lessonsCompleted: 0,
           lessons: [],
+          gachaState: null,
           completedLessonIds: [],
           lastActiveDate: null,
           isGenerating: false
@@ -94,6 +92,12 @@ export const useAppStore = create<AppStore>()(
       },
       setLanguage: (language) => set({ language }),
       setLessons: (lessons) => set({ lessons }),
+      setGachaState: (gachaState) => set({ gachaState, currency: gachaState.currency }),
+      applyGachaPull: (result) =>
+        set({
+          gachaState: result.state,
+          currency: result.state.currency
+        }),
       upsertLesson: (lesson) => {
         const current = get().lessons;
         const existingIndex = current.findIndex((item) => item.id === lesson.id);

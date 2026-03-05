@@ -1,4 +1,5 @@
 import type { AttemptRequest, AttemptResponse, LessonDetail, LessonListResponse, UploadExtracted } from "../types/lesson";
+import type { GachaPullRequest, GachaPullResponse, GachaState } from "@academy/shared";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3001";
 const CONTRACT_ACCESS_CODE = import.meta.env.VITE_ACCESS_CODE ?? "arlecchino";
@@ -142,5 +143,22 @@ export async function submitAttempt(input: {
     method: "POST",
     token: input.token,
     json: input.submission
+  });
+}
+
+export async function fetchGachaState(token: string, signal?: AbortSignal): Promise<GachaState> {
+  return apiFetch<GachaState>("/api/gacha/state", { token, signal });
+}
+
+export async function performGachaPull(input: {
+  token: string;
+  count: GachaPullRequest["count"];
+}): Promise<GachaPullResponse> {
+  return apiFetch<GachaPullResponse>("/api/gacha/pull", {
+    method: "POST",
+    token: input.token,
+    json: {
+      count: input.count
+    }
   });
 }

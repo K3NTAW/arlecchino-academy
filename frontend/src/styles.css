@@ -1574,3 +1574,210 @@ code {
     flex-direction: column;
   }
 }
+
+.academy-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in oklab, var(--border) 72%, var(--crimson) 28%);
+  background: color-mix(in oklab, var(--card) 80%, var(--deep) 20%);
+  color: var(--ash);
+  border-radius: 999px;
+  padding: 0.28rem 0.72rem;
+  text-decoration: none;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.academy-nav-link:hover {
+  border-color: color-mix(in oklab, var(--scarlet) 70%, var(--border) 30%);
+  box-shadow: 0 0 20px rgba(139, 0, 0, 0.18);
+}
+
+.wish-page {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.wish-hero-card {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--card) 84%, black 16%), color-mix(in oklab, var(--deep) 80%, black 20%));
+  border: 1px solid color-mix(in oklab, var(--border) 68%, var(--scarlet) 32%);
+  border-radius: 18px;
+  padding: 1.1rem 1.2rem;
+}
+
+.wish-hero-card small {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rose);
+}
+
+.wish-hero-card h1 {
+  margin: 0.4rem 0 0.25rem;
+  color: var(--gold);
+}
+
+.wish-hero-card p {
+  margin: 0;
+  color: var(--silver);
+}
+
+.wish-featured {
+  margin-top: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: var(--ash);
+}
+
+.wish-state-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.wish-state-card {
+  background: color-mix(in oklab, var(--card) 88%, black 12%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.85rem;
+}
+
+.wish-state-card h2 {
+  margin: 0;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silver);
+}
+
+.wish-state-card strong {
+  margin-top: 0.5rem;
+  display: block;
+  color: var(--ash);
+  font-size: 1rem;
+}
+
+.wish-pull-actions {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.wish-pull-actions button {
+  border: 1px solid color-mix(in oklab, var(--border) 66%, var(--crimson) 34%);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--crimson) 86%, black 14%), color-mix(in oklab, var(--scarlet) 72%, black 28%));
+  color: var(--ash);
+  border-radius: 10px;
+  padding: 0.62rem 0.85rem;
+  cursor: pointer;
+}
+
+.wish-pull-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wish-status {
+  margin: 0;
+  color: var(--silver);
+}
+
+.wish-error {
+  color: var(--rose);
+}
+
+.wish-results,
+.wish-history {
+  background: color-mix(in oklab, var(--card) 90%, black 10%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.95rem;
+}
+
+.wish-results h3,
+.wish-history h3 {
+  margin: 0 0 0.65rem;
+  color: var(--ash);
+}
+
+.wish-results-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.wish-result-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.55rem;
+  background: color-mix(in oklab, var(--deep) 86%, black 14%);
+}
+
+.wish-result-item > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  color: var(--silver);
+}
+
+.wish-result-item strong {
+  display: block;
+  margin-top: 0.42rem;
+  color: var(--ash);
+}
+
+.wish-result-item small {
+  color: var(--silver);
+}
+
+.wish-result-item.rarity-5 {
+  border-color: color-mix(in oklab, var(--gold) 72%, var(--border) 28%);
+}
+
+.wish-result-item.rarity-4 {
+  border-color: color-mix(in oklab, #8f6bff 60%, var(--border) 40%);
+}
+
+.wish-history-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.wish-history-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  border: 1px solid color-mix(in oklab, var(--border) 78%, var(--deep) 22%);
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
+}
+
+.wish-rarity-tag {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  color: var(--silver);
+}
+
+.wish-rarity-tag.rarity-5 {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.wish-rarity-tag.rarity-4 {
+  border-color: #8f6bff;
+  color: #b8a2ff;
+}
+
+@media (max-width: 900px) {
+  .wish-state-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wish-results-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

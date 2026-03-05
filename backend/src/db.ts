@@ -40,26 +40,62 @@ type ProgressStats = {
   xpToNextLevel: number;
 };
 
+type GachaState = {
+  banner: {
+    id: string;
+    name: string;
+    featuredItemName: string;
+    costPerPull: number;
+    rate3: number;
+    rate4: number;
+    rate5: number;
+    pity4: number;
+    pity5: number;
+  };
+  currency: number;
+  pity4Counter: number;
+  pity5Counter: number;
+  guaranteedFeatured5Star: boolean;
+  history: Array<{
+    item: {
+      id: string;
+      name: string;
+      rarity: 3 | 4 | 5;
+      featured: boolean;
+      type: "character";
+    };
+    wasPity4: boolean;
+    wasPity5: boolean;
+    wasFeaturedGuarantee: boolean;
+  }>;
+};
+
+const GACHA_BANNER_ID = "arlecchino-banner-v1";
+const GACHA_PULL_COST = 160;
+const GACHA_RATE_5 = 0.006;
+const GACHA_RATE_4 = 0.051;
+const GACHA_RATE_3 = 0.943;
+const GACHA_PITY_5 = 90;
+const GACHA_PITY_4 = 10;
+
 function levelFromXp(xp: number): string {
-  if (xp >= 1500) {
-    return "Harbinger";
+  const levelNumber = Math.floor(Math.max(0, xp) / 250) + 1;
+  if (levelNumber >= 20) {
+    return "Director";
   }
-  if (xp >= 800) {
-    return "Agent of the House";
+  if (levelNumber >= 10) {
+    return "Agent";
   }
-  if (xp >= 300) {
-    return "Shadow";
-  }
-  if (xp >= 100) {
+  if (levelNumber >= 5) {
     return "Apprentice";
   }
   return "Fledgling";
 }
 
 function xpToNextLevel(xp: number): number {
-  const thresholds = [100, 300, 800, 1500];
-  const next = thresholds.find((value) => xp < value);
-  return next ? next - xp : 0;
+  const perLevel = 250;
+  const inCurrentLevel = Math.max(0, xp) % perLevel;
+  return perLevel - inCurrentLevel;
 }
 
 function badgeKeysFromXp(xp: number): string[] {
@@ -268,8 +304,114 @@ export class DatabaseService {
     `);
 
     await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gacha_banners (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        featured_item_name TEXT NOT NULL,
+        cost_per_pull INT NOT NULL,
+        rate3 DOUBLE PRECISION NOT NULL,
+        rate4 DOUBLE PRECISION NOT NULL,
+        rate5 DOUBLE PRECISION NOT NULL,
+        pity4 INT NOT NULL,
+        pity5 INT NOT NULL,
+        active BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gacha_items (
+        id TEXT PRIMARY KEY,
+        banner_id TEXT NOT NULL REFERENCES gacha_banners(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        rarity INT NOT NULL CHECK (rarity IN (3, 4, 5)),
+        featured BOOLEAN NOT NULL DEFAULT FALSE,
+        type TEXT NOT NULL DEFAULT 'character',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gacha_state (
+        id SMALLINT PRIMARY KEY CHECK (id = 1),
+        pity4_counter INT NOT NULL DEFAULT 0,
+        pity5_counter INT NOT NULL DEFAULT 0,
+        guaranteed_featured_5_star BOOLEAN NOT NULL DEFAULT FALSE,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS gacha_pulls (
+        id BIGSERIAL PRIMARY KEY,
+        item_id TEXT NOT NULL REFERENCES gacha_items(id) ON DELETE RESTRICT,
+        item_name TEXT NOT NULL,
+        rarity INT NOT NULL CHECK (rarity IN (3, 4, 5)),
+        featured BOOLEAN NOT NULL DEFAULT FALSE,
+        was_pity4 BOOLEAN NOT NULL DEFAULT FALSE,
+        was_pity5 BOOLEAN NOT NULL DEFAULT FALSE,
+        was_featured_guarantee BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
       INSERT INTO profile_progress (id, xp, level, streak_days)
       VALUES (1, 0, 'Fledgling', 0)
+      ON CONFLICT (id) DO NOTHING;
+    `);
+
+    await this.pool.query(
+      `
+        INSERT INTO gacha_banners (
+          id, name, featured_item_name, cost_per_pull, rate3, rate4, rate5, pity4, pity5, active
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          featured_item_name = EXCLUDED.featured_item_name,
+          cost_per_pull = EXCLUDED.cost_per_pull,
+          rate3 = EXCLUDED.rate3,
+          rate4 = EXCLUDED.rate4,
+          rate5 = EXCLUDED.rate5,
+          pity4 = EXCLUDED.pity4,
+          pity5 = EXCLUDED.pity5,
+          active = TRUE
+      `,
+      [
+        GACHA_BANNER_ID,
+        "Moment of Crimson Oath",
+        "Arlecchino",
+        GACHA_PULL_COST,
+        GACHA_RATE_3,
+        GACHA_RATE_4,
+        GACHA_RATE_5,
+        GACHA_PITY_4,
+        GACHA_PITY_5
+      ]
+    );
+
+    await this.pool.query(
+      `
+        INSERT INTO gacha_items (id, banner_id, name, rarity, featured, type)
+        VALUES
+          ('arlecchino', $1, 'Arlecchino', 5, TRUE, 'character'),
+          ('diluc', $1, 'Diluc', 5, FALSE, 'character'),
+          ('keqing', $1, 'Keqing', 5, FALSE, 'character'),
+          ('fischl', $1, 'Fischl', 4, FALSE, 'character'),
+          ('xiangling', $1, 'Xiangling', 4, FALSE, 'character'),
+          ('bennett', $1, 'Bennett', 4, FALSE, 'character'),
+          ('debate-club', $1, 'Debate Club', 3, FALSE, 'character'),
+          ('slingshot', $1, 'Slingshot', 3, FALSE, 'character'),
+          ('harbinger-of-dawn', $1, 'Harbinger of Dawn', 3, FALSE, 'character')
+        ON CONFLICT (id) DO NOTHING
+      `,
+      [GACHA_BANNER_ID]
+    );
+
+    await this.pool.query(`
+      INSERT INTO gacha_state (id, pity4_counter, pity5_counter, guaranteed_featured_5_star)
+      VALUES (1, 0, 0, FALSE)
       ON CONFLICT (id) DO NOTHING;
     `);
 
@@ -455,7 +597,7 @@ export class DatabaseService {
     const masteryPercent = totalAttempts > 0 ? Math.round((correctAttempts / totalAttempts) * 100) : 0;
     const xp = Number(progressRes.rows[0]?.xp ?? 0);
     const currency = Number(progressRes.rows[0]?.currency ?? 0);
-    const level = String(progressRes.rows[0]?.level ?? levelFromXp(xp));
+    const level = levelFromXp(xp);
     const streakDays = Number(progressRes.rows[0]?.streak_days ?? 0);
 
     return {
@@ -573,6 +715,291 @@ export class DatabaseService {
       type: row.type,
       difficulty: row.difficulty
     };
+  }
+
+  async getGachaState(): Promise<GachaState> {
+    const [bannerRes, progressRes, stateRes, historyRes] = await Promise.all([
+      this.pool.query(
+        `
+          SELECT id, name, featured_item_name, cost_per_pull, rate3, rate4, rate5, pity4, pity5
+          FROM gacha_banners
+          WHERE active = TRUE
+          ORDER BY created_at DESC
+          LIMIT 1
+        `
+      ),
+      this.pool.query(`SELECT currency FROM profile_progress WHERE id = 1 LIMIT 1`),
+      this.pool.query(
+        `
+          SELECT pity4_counter, pity5_counter, guaranteed_featured_5_star
+          FROM gacha_state
+          WHERE id = 1
+          LIMIT 1
+        `
+      ),
+      this.pool.query(
+        `
+          SELECT item_id, item_name, rarity, featured, was_pity4, was_pity5, was_featured_guarantee
+          FROM gacha_pulls
+          ORDER BY id DESC
+          LIMIT 30
+        `
+      )
+    ]);
+
+    if (bannerRes.rowCount === 0) {
+      throw new Error("No active gacha banner configured.");
+    }
+
+    const bannerRow = bannerRes.rows[0];
+    const stateRow = stateRes.rows[0] ?? {
+      pity4_counter: 0,
+      pity5_counter: 0,
+      guaranteed_featured_5_star: false
+    };
+
+    return {
+      banner: {
+        id: String(bannerRow.id),
+        name: String(bannerRow.name),
+        featuredItemName: String(bannerRow.featured_item_name),
+        costPerPull: Number(bannerRow.cost_per_pull),
+        rate3: Number(bannerRow.rate3),
+        rate4: Number(bannerRow.rate4),
+        rate5: Number(bannerRow.rate5),
+        pity4: Number(bannerRow.pity4),
+        pity5: Number(bannerRow.pity5)
+      },
+      currency: Number(progressRes.rows[0]?.currency ?? 0),
+      pity4Counter: Number(stateRow.pity4_counter ?? 0),
+      pity5Counter: Number(stateRow.pity5_counter ?? 0),
+      guaranteedFeatured5Star: Boolean(stateRow.guaranteed_featured_5_star),
+      history: historyRes.rows.map((row) => ({
+        item: {
+          id: String(row.item_id),
+          name: String(row.item_name),
+          rarity: Number(row.rarity) as 3 | 4 | 5,
+          featured: Boolean(row.featured),
+          type: "character" as const
+        },
+        wasPity4: Boolean(row.was_pity4),
+        wasPity5: Boolean(row.was_pity5),
+        wasFeaturedGuarantee: Boolean(row.was_featured_guarantee)
+      }))
+    };
+  }
+
+  async performGachaPull(count: 1 | 10): Promise<{
+    spentCurrency: number;
+    pulls: GachaState["history"];
+    state: GachaState;
+  }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const bannerRes = await client.query(
+        `
+          SELECT id, name, featured_item_name, cost_per_pull, rate3, rate4, rate5, pity4, pity5
+          FROM gacha_banners
+          WHERE active = TRUE
+          ORDER BY created_at DESC
+          LIMIT 1
+          FOR UPDATE
+        `
+      );
+      if (bannerRes.rowCount === 0) {
+        throw new Error("No active gacha banner configured.");
+      }
+      const banner = bannerRes.rows[0];
+
+      const itemsRes = await client.query(
+        `
+          SELECT id, name, rarity, featured, type
+          FROM gacha_items
+          WHERE banner_id = $1
+        `,
+        [banner.id]
+      );
+      const allItems = itemsRes.rows.map((row) => ({
+        id: String(row.id),
+        name: String(row.name),
+        rarity: Number(row.rarity) as 3 | 4 | 5,
+        featured: Boolean(row.featured),
+        type: "character" as const
+      }));
+      const rarity5 = allItems.filter((item) => item.rarity === 5);
+      const rarity5Featured = rarity5.filter((item) => item.featured);
+      const rarity5Standard = rarity5.filter((item) => !item.featured);
+      const rarity4 = allItems.filter((item) => item.rarity === 4);
+      const rarity3 = allItems.filter((item) => item.rarity === 3);
+
+      if (rarity3.length === 0 || rarity4.length === 0 || rarity5Featured.length === 0 || rarity5.length === 0) {
+        throw new Error("Banner pool is incomplete.");
+      }
+
+      const progressRes = await client.query(
+        `
+          SELECT currency
+          FROM profile_progress
+          WHERE id = 1
+          FOR UPDATE
+        `
+      );
+      const currentCurrency = Number(progressRes.rows[0]?.currency ?? 0);
+      const spentCurrency = Number(banner.cost_per_pull) * count;
+      if (currentCurrency < spentCurrency) {
+        throw new Error("Not enough Ember Coins.");
+      }
+
+      const stateRes = await client.query(
+        `
+          SELECT pity4_counter, pity5_counter, guaranteed_featured_5_star
+          FROM gacha_state
+          WHERE id = 1
+          FOR UPDATE
+        `
+      );
+      const initialState = stateRes.rows[0] ?? {
+        pity4_counter: 0,
+        pity5_counter: 0,
+        guaranteed_featured_5_star: false
+      };
+      let pity4Counter = Number(initialState.pity4_counter ?? 0);
+      let pity5Counter = Number(initialState.pity5_counter ?? 0);
+      let guaranteedFeatured5Star = Boolean(initialState.guaranteed_featured_5_star);
+
+      const pulls: GachaState["history"] = [];
+
+      const pick = <T>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
+
+      for (let i = 0; i < count; i += 1) {
+        const nextPity4 = pity4Counter + 1;
+        const nextPity5 = pity5Counter + 1;
+        const hitPity5 = nextPity5 >= Number(banner.pity5);
+        const hitPity4 = !hitPity5 && nextPity4 >= Number(banner.pity4);
+
+        let rarity: 3 | 4 | 5 = 3;
+        if (hitPity5) {
+          rarity = 5;
+        } else if (hitPity4) {
+          rarity = 4;
+        } else {
+          const roll = Math.random();
+          if (roll < Number(banner.rate5)) {
+            rarity = 5;
+          } else if (roll < Number(banner.rate5) + Number(banner.rate4)) {
+            rarity = 4;
+          } else {
+            rarity = 3;
+          }
+        }
+
+        let item = pick(rarity === 5 ? rarity5 : rarity === 4 ? rarity4 : rarity3);
+        let usedFeaturedGuarantee = false;
+
+        if (rarity === 5) {
+          if (guaranteedFeatured5Star) {
+            item = pick(rarity5Featured);
+            usedFeaturedGuarantee = true;
+            guaranteedFeatured5Star = false;
+          } else {
+            const featuredWin = Math.random() < 0.5 || rarity5Standard.length === 0;
+            if (featuredWin) {
+              item = pick(rarity5Featured);
+              guaranteedFeatured5Star = false;
+            } else {
+              item = pick(rarity5Standard);
+              guaranteedFeatured5Star = true;
+            }
+          }
+        }
+
+        if (rarity === 5) {
+          pity5Counter = 0;
+          pity4Counter = 0;
+        } else if (rarity === 4) {
+          pity4Counter = 0;
+          pity5Counter = nextPity5;
+        } else {
+          pity4Counter = nextPity4;
+          pity5Counter = nextPity5;
+        }
+
+        pulls.push({
+          item,
+          wasPity4: hitPity4,
+          wasPity5: hitPity5,
+          wasFeaturedGuarantee: usedFeaturedGuarantee
+        });
+      }
+
+      await client.query(
+        `
+          UPDATE profile_progress
+          SET currency = $1, updated_at = NOW()
+          WHERE id = 1
+        `,
+        [currentCurrency - spentCurrency]
+      );
+
+      await client.query(
+        `
+          INSERT INTO currency_events (source, amount, challenge_id, lesson_id)
+          VALUES ($1, $2, NULL, NULL)
+        `,
+        ["gacha.pull", -spentCurrency]
+      );
+
+      await client.query(
+        `
+          UPDATE gacha_state
+          SET pity4_counter = $1, pity5_counter = $2, guaranteed_featured_5_star = $3, updated_at = NOW()
+          WHERE id = 1
+        `,
+        [pity4Counter, pity5Counter, guaranteedFeatured5Star]
+      );
+
+      for (const pull of pulls) {
+        await client.query(
+          `
+            INSERT INTO gacha_pulls (
+              item_id,
+              item_name,
+              rarity,
+              featured,
+              was_pity4,
+              was_pity5,
+              was_featured_guarantee
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `,
+          [
+            pull.item.id,
+            pull.item.name,
+            pull.item.rarity,
+            pull.item.featured,
+            pull.wasPity4,
+            pull.wasPity5,
+            pull.wasFeaturedGuarantee
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      const state = await this.getGachaState();
+      return {
+        spentCurrency,
+        pulls,
+        state
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async getLessons(input: {

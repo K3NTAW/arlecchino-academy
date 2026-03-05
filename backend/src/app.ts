@@ -7,6 +7,9 @@ import {
   ChallengeAttemptRequestSchema,
   ChallengeAttemptResponseSchema,
   ChallengeSchema,
+  GachaPullRequestSchema,
+  GachaPullResponseSchema,
+  GachaStateSchema,
   GenerateRequestSchema,
   LessonBundleSchema
 } from "@academy/shared";
@@ -379,6 +382,47 @@ export function createApp(aiProvider: AIProvider, db: DatabaseService, options: 
       }
       const stats = await db.getProgressStats();
       res.json(stats);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/gacha/state", async (req, res, next) => {
+    try {
+      if (!ensureAuthorized(req, res)) {
+        return;
+      }
+      const state = await db.getGachaState();
+      res.json(GachaStateSchema.parse(state));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/gacha/pull", async (req, res, next) => {
+    try {
+      if (!ensureAuthorized(req, res)) {
+        return;
+      }
+      const body = GachaPullRequestSchema.parse(req.body);
+      try {
+        const result = await db.performGachaPull(body.count);
+        res.json(
+          GachaPullResponseSchema.parse({
+            ok: true,
+            spentCurrency: result.spentCurrency,
+            pulls: result.pulls,
+            state: result.state
+          })
+        );
+      } catch (pullError) {
+        const message = pullError instanceof Error ? pullError.message : "Pull failed.";
+        if (message === "Not enough Ember Coins.") {
+          res.status(400).json({ message });
+          return;
+        }
+        throw pullError;
+      }
     } catch (error) {
       next(error);
     }

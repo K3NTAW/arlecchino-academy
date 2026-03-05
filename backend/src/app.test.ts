@@ -32,6 +32,41 @@ const testProvider: AIProvider = {
   }
 };
 
+const testGacha = {
+  currency: 1600,
+  pity4Counter: 0,
+  pity5Counter: 0,
+  guaranteedFeatured5Star: false,
+  history: [] as Array<{
+    item: { id: string; name: string; rarity: 3 | 4 | 5; featured: boolean; type: "character" };
+    wasPity4: boolean;
+    wasPity5: boolean;
+    wasFeaturedGuarantee: boolean;
+  }>
+};
+
+function gachaBanner() {
+  return {
+    id: "arlecchino-banner-v1",
+    name: "Moment of Crimson Oath",
+    featuredItemName: "Arlecchino",
+    costPerPull: 160,
+    rate3: 0.943,
+    rate4: 0.051,
+    rate5: 0.006,
+    pity4: 10,
+    pity5: 90
+  };
+}
+
+function resetTestGacha(input: Partial<typeof testGacha> = {}) {
+  testGacha.currency = input.currency ?? 1600;
+  testGacha.pity4Counter = input.pity4Counter ?? 0;
+  testGacha.pity5Counter = input.pity5Counter ?? 0;
+  testGacha.guaranteedFeatured5Star = input.guaranteedFeatured5Star ?? false;
+  testGacha.history = input.history ?? [];
+}
+
 const fakeDb = {
   async findLessonByHashAndLanguage() {
     return null;
@@ -160,6 +195,97 @@ const fakeDb = {
   },
   async saveAttempt() {
     return { gainedXp: 100, gainedCurrency: 25, totalXp: 100, totalCurrency: 25, level: "Apprentice", streakDays: 1 };
+  },
+  async getGachaState() {
+    return {
+      banner: gachaBanner(),
+      currency: testGacha.currency,
+      pity4Counter: testGacha.pity4Counter,
+      pity5Counter: testGacha.pity5Counter,
+      guaranteedFeatured5Star: testGacha.guaranteedFeatured5Star,
+      history: testGacha.history
+    };
+  },
+  async performGachaPull(count: 1 | 10) {
+    const spentCurrency = 160 * count;
+    if (testGacha.currency < spentCurrency) {
+      throw new Error("Not enough Ember Coins.");
+    }
+
+    const pulls: typeof testGacha.history = [];
+    for (let i = 0; i < count; i += 1) {
+      const nextPity4 = testGacha.pity4Counter + 1;
+      const nextPity5 = testGacha.pity5Counter + 1;
+      const hitPity5 = nextPity5 >= 90;
+      const hitPity4 = !hitPity5 && nextPity4 >= 10;
+
+      let rarity: 3 | 4 | 5 = 3;
+      if (hitPity5) {
+        rarity = 5;
+      } else if (hitPity4) {
+        rarity = 4;
+      }
+
+      const pull = {
+        item:
+          rarity === 5
+            ? {
+                id: "arlecchino",
+                name: "Arlecchino",
+                rarity: 5 as const,
+                featured: true,
+                type: "character" as const
+              }
+            : rarity === 4
+              ? {
+                  id: "xiangling",
+                  name: "Xiangling",
+                  rarity: 4 as const,
+                  featured: false,
+                  type: "character" as const
+                }
+              : {
+                  id: "slingshot",
+                  name: "Slingshot",
+                  rarity: 3 as const,
+                  featured: false,
+                  type: "character" as const
+                },
+        wasPity4: hitPity4,
+        wasPity5: hitPity5,
+        wasFeaturedGuarantee: rarity === 5 && testGacha.guaranteedFeatured5Star
+      };
+
+      pulls.push(pull);
+
+      if (rarity === 5) {
+        testGacha.pity4Counter = 0;
+        testGacha.pity5Counter = 0;
+        testGacha.guaranteedFeatured5Star = false;
+      } else if (rarity === 4) {
+        testGacha.pity4Counter = 0;
+        testGacha.pity5Counter = nextPity5;
+      } else {
+        testGacha.pity4Counter = nextPity4;
+        testGacha.pity5Counter = nextPity5;
+      }
+    }
+
+    testGacha.currency -= spentCurrency;
+    testGacha.history = [...pulls.slice().reverse(), ...testGacha.history].slice(0, 30);
+
+    return {
+      spentCurrency,
+      pulls,
+      state: {
+        banner: gachaBanner(),
+        currency: testGacha.currency,
+        pity4Counter: testGacha.pity4Counter,
+        pity5Counter: testGacha.pity5Counter,
+        guaranteedFeatured5Star: testGacha.guaranteedFeatured5Star,
+        history: testGacha.history
+      }
+    };
   }
 } as unknown as DatabaseService;
 
@@ -175,6 +301,13 @@ const fakeJavaEvaluator: JavaEvaluator = {
 const app = createApp(testProvider, fakeDb, { javaEvaluator: fakeJavaEvaluator });
 
 describe("backend app", () => {
+  it("returns gacha state for authenticated user", async () => {
+    resetTestGacha();
+    const res = await request(app).get("/api/gacha/state").set("Authorization", `Bearer ${env.ACCESS_TOKEN}`);
+    expect(res.status).toBe(200);
+    expect(res.body.banner.featuredItemName).toBe("Arlecchino");
+  });
+
   it("returns health state", async () => {
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(200);
@@ -246,5 +379,56 @@ describe("backend app", () => {
     expect(res.body.gainedCurrency).toBe(0);
     expect(res.body.evaluation.type).toBe("coding");
     expect(Array.isArray(res.body.evaluation.testResults)).toBe(true);
+  });
+
+  it("rejects gacha pull when currency is insufficient", async () => {
+    resetTestGacha({ currency: 100 });
+    const res = await request(app)
+      .post("/api/gacha/pull")
+      .set("Authorization", `Bearer ${env.ACCESS_TOKEN}`)
+      .send({ count: 1 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain("Not enough Ember Coins");
+  });
+
+  it("triggers hard pity and returns a 5-star result", async () => {
+    resetTestGacha({ currency: 1600, pity4Counter: 0, pity5Counter: 89 });
+    const res = await request(app)
+      .post("/api/gacha/pull")
+      .set("Authorization", `Bearer ${env.ACCESS_TOKEN}`)
+      .send({ count: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.pulls[0].item.rarity).toBe(5);
+    expect(res.body.pulls[0].wasPity5).toBe(true);
+  });
+
+  it("applies featured guarantee when guarantee flag is set", async () => {
+    resetTestGacha({ currency: 1600, pity4Counter: 0, pity5Counter: 89, guaranteedFeatured5Star: true });
+    const res = await request(app)
+      .post("/api/gacha/pull")
+      .set("Authorization", `Bearer ${env.ACCESS_TOKEN}`)
+      .send({ count: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.pulls[0].item.name).toBe("Arlecchino");
+    expect(res.body.pulls[0].wasFeaturedGuarantee).toBe(true);
+    expect(res.body.state.guaranteedFeatured5Star).toBe(false);
+  });
+
+  it("deducts currency and persists pull history between calls", async () => {
+    resetTestGacha({ currency: 1600 });
+    const pullRes = await request(app)
+      .post("/api/gacha/pull")
+      .set("Authorization", `Bearer ${env.ACCESS_TOKEN}`)
+      .send({ count: 1 });
+    expect(pullRes.status).toBe(200);
+    expect(pullRes.body.spentCurrency).toBe(160);
+
+    const stateRes = await request(app).get("/api/gacha/state").set("Authorization", `Bearer ${env.ACCESS_TOKEN}`);
+    expect(stateRes.status).toBe(200);
+    expect(stateRes.body.currency).toBe(1440);
+    expect(stateRes.body.history.length).toBeGreaterThan(0);
   });
 });
