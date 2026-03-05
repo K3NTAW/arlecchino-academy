@@ -8,6 +8,7 @@ WORKDIR /app
 
 # Copy workspace manifests first for better layer caching
 COPY package.json package-lock.json ./
+COPY tsconfig.base.json ./
 COPY backend/package.json backend/package.json
 COPY shared/package.json shared/package.json
 COPY frontend/package.json frontend/package.json
@@ -26,4 +27,4 @@ ENV PORT=3001
 WORKDIR /app/backend
 EXPOSE 3001
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "dev"]

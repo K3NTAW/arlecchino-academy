@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Coins,
   Check,
   FileUp,
   Flame,
@@ -13,16 +14,18 @@ import {
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchLessons } from "../lib/api";
+import { fetchDashboard, fetchLessons } from "../lib/api";
 import { getNextRankThreshold, getRankFromXp, useAppStore } from "../store/appStore";
 
 export function DashboardPage() {
   const token = useAppStore((state) => state.token);
   const xp = useAppStore((state) => state.xp);
+  const currency = useAppStore((state) => state.currency);
   const streak = useAppStore((state) => state.streak);
   const lessonsCompleted = useAppStore((state) => state.lessonsCompleted);
   const lessons = useAppStore((state) => state.lessons);
   const setLessons = useAppStore((state) => state.setLessons);
+  const hydrateProgress = useAppStore((state) => state.hydrateProgress);
   const completedLessonIds = useAppStore((state) => state.completedLessonIds);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +37,17 @@ export function DashboardPage() {
     const controller = new AbortController();
     setStatus("loading");
     setError(null);
-    void fetchLessons({ token, page: 1, pageSize: 24, signal: controller.signal })
-      .then((result) => {
-        setLessons(result.items);
+    void Promise.all([
+      fetchLessons({ token, page: 1, pageSize: 24, signal: controller.signal }),
+      fetchDashboard(token, controller.signal)
+    ])
+      .then(([lessonsResult, dashboardResult]) => {
+        setLessons(lessonsResult.items);
+        hydrateProgress({
+          xp: dashboardResult.xp,
+          currency: dashboardResult.currency,
+          streak: dashboardResult.streakDays
+        });
         setStatus("success");
       })
       .catch((loadError) => {
@@ -47,7 +58,7 @@ export function DashboardPage() {
         setStatus("error");
       });
     return () => controller.abort();
-  }, [setLessons, token]);
+  }, [hydrateProgress, setLessons, token]);
 
   const rank = getRankFromXp(xp);
   const nextThreshold = getNextRankThreshold(xp);
@@ -115,6 +126,18 @@ export function DashboardPage() {
           <div className="dash-stat-main">
             <strong>{masteryPercent}%</strong>
             <p>Rank {rank} · {streak} day streak</p>
+          </div>
+        </article>
+        <article className="dash-stat-card">
+          <div className="dash-stat-head">
+            <h2>Ember Coins</h2>
+            <div className="dash-stat-icon">
+              <Coins size={16} />
+            </div>
+          </div>
+          <div className="dash-stat-main">
+            <strong>{currency.toLocaleString("en-US")}</strong>
+            <p>Earned by solving challenges</p>
           </div>
         </article>
       </section>

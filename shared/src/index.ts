@@ -109,7 +109,9 @@ export const ChallengeAttemptResponseSchema = z.object({
   intent: z.enum(["check", "submit"]),
   isCorrect: z.boolean(),
   gainedXp: z.number().int().nonnegative(),
+  gainedCurrency: z.number().int().nonnegative(),
   totalXp: z.number().int().nonnegative(),
+  totalCurrency: z.number().int().nonnegative(),
   level: z.string().min(1),
   streakDays: z.number().int().nonnegative(),
   evaluation: ChallengeAttemptEvaluationSchema

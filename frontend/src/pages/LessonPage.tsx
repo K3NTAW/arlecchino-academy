@@ -171,6 +171,7 @@ export function LessonPage() {
     applyAttemptResult({
       lessonId,
       gainedXp: result.gainedXp,
+      gainedCurrency: result.gainedCurrency,
       isCorrect: result.isCorrect,
       streakFromBackend: result.streakDays
     });
@@ -189,7 +190,11 @@ export function LessonPage() {
     if (result.isCorrect) {
       setSolvedChallengeIds((current) => (current.includes(challengeId) ? current : [...current, challengeId]));
     }
-    setFeedback(result.isCorrect ? `Great work. +${result.gainedXp} XP gained.` : "Not quite. Try one more time.");
+    setFeedback(
+      result.isCorrect
+        ? `Great work. +${result.gainedXp} XP and +${result.gainedCurrency} Ember Coins gained.`
+        : "Not quite. Try one more time."
+    );
     return result;
   };
 
@@ -210,7 +215,13 @@ export function LessonPage() {
     if (intent === "submit" && result.isCorrect) {
       setSolvedChallengeIds((current) => (current.includes(challengeId) ? current : [...current, challengeId]));
     }
-    setFeedback(result.intent === "check" ? "Checks complete." : result.isCorrect ? "Challenge completed." : "Try again.");
+    setFeedback(
+      result.intent === "check"
+        ? "Checks complete."
+        : result.isCorrect
+          ? `Challenge completed. +${result.gainedXp} XP and +${result.gainedCurrency} Ember Coins.`
+          : "Try again."
+    );
     return result;
   };
 

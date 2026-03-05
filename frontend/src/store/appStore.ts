@@ -9,6 +9,7 @@ type AppStore = {
   token: string | null;
   language: "en" | "sr";
   xp: number;
+  currency: number;
   streak: number;
   lessonsCompleted: number;
   lessons: LessonListItem[];
@@ -21,9 +22,11 @@ type AppStore = {
   setLessons: (lessons: LessonListItem[]) => void;
   upsertLesson: (lesson: LessonListItem) => void;
   setGenerating: (isGenerating: boolean) => void;
+  hydrateProgress: (input: { xp: number; currency: number; streak: number }) => void;
   applyAttemptResult: (input: {
     lessonId: number;
     gainedXp: number;
+    gainedCurrency: number;
     isCorrect: boolean;
     streakFromBackend?: number;
   }) => void;
@@ -64,6 +67,7 @@ export const useAppStore = create<AppStore>()(
       token: null,
       language: "en",
       xp: 0,
+      currency: 0,
       streak: 0,
       lessonsCompleted: 0,
       lessons: [],
@@ -79,6 +83,7 @@ export const useAppStore = create<AppStore>()(
           token: null,
           language: "en",
           xp: 0,
+          currency: 0,
           streak: 0,
           lessonsCompleted: 0,
           lessons: [],
@@ -101,7 +106,8 @@ export const useAppStore = create<AppStore>()(
         set({ lessons: [lesson, ...current] });
       },
       setGenerating: (isGenerating) => set({ isGenerating }),
-      applyAttemptResult: ({ lessonId, gainedXp, isCorrect, streakFromBackend }) => {
+      hydrateProgress: ({ xp, currency, streak }) => set({ xp, currency, streak }),
+      applyAttemptResult: ({ lessonId, gainedXp, gainedCurrency, isCorrect, streakFromBackend }) => {
         const state = get();
         const nowDay = today();
         let nextStreak = state.streak;
@@ -126,6 +132,7 @@ export const useAppStore = create<AppStore>()(
 
         set({
           xp: state.xp + gainedXp,
+          currency: state.currency + gainedCurrency,
           streak: nextStreak,
           lessonsCompleted: completed.size,
           completedLessonIds: [...completed],

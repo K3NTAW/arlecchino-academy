@@ -75,16 +75,43 @@ function normalizeOutput(value: string): string {
   return value.replace(/\r\n/g, "\n").trim();
 }
 
+function detectEntryClassName(code: string): string | null {
+  const publicClassMatch = code.match(/\bpublic\s+class\s+([A-Za-z_][A-Za-z0-9_]*)\b/);
+  if (publicClassMatch?.[1]) {
+    return publicClassMatch[1];
+  }
+  const classMatch = code.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)\b/);
+  return classMatch?.[1] ?? null;
+}
+
+function wrapCodeInMainIfNeeded(code: string): { normalizedCode: string; entryClassName: string } {
+  const detectedClass = detectEntryClassName(code);
+  if (detectedClass) {
+    return { normalizedCode: code, entryClassName: detectedClass };
+  }
+
+  // Fallback for snippet-style answers that omit a class declaration.
+  const indented = code
+    .split("\n")
+    .map((line) => `    ${line}`)
+    .join("\n");
+  return {
+    normalizedCode: `public class Main {\n  public static void main(String[] args) {\n${indented}\n  }\n}\n`,
+    entryClassName: "Main"
+  };
+}
+
 export class LocalJavaEvaluator implements JavaEvaluator {
   async evaluate(input: JavaEvaluationInput): Promise<JavaEvaluationResult> {
     const workdir = await mkdtemp(join(tmpdir(), "academy-java-"));
 
     try {
-      await writeFile(join(workdir, "Main.java"), input.code, "utf8");
+      const { normalizedCode, entryClassName } = wrapCodeInMainIfNeeded(input.code);
+      await writeFile(join(workdir, `${entryClassName}.java`), normalizedCode, "utf8");
 
       const compile = await runCommand({
         command: "javac",
-        args: ["Main.java"],
+        args: [`${entryClassName}.java`],
         cwd: workdir,
         timeoutMs: 8000
       });
@@ -109,7 +136,7 @@ export class LocalJavaEvaluator implements JavaEvaluator {
       for (const testCase of input.testCases) {
         const execute = await runCommand({
           command: "java",
-          args: ["-cp", workdir, "Main"],
+          args: ["-cp", workdir, entryClassName],
           cwd: workdir,
           timeoutMs: 5000,
           stdin: testCase.input
@@ -124,13 +151,16 @@ export class LocalJavaEvaluator implements JavaEvaluator {
               : normalizeOutput(execute.stderr) || "Execution failed."
             : undefined;
         const passed = !runtimeError && actual === expected;
+        const mismatchError = !runtimeError && !passed
+          ? `Output mismatch. Expected: "${expected}" | Actual: "${actual}"`
+          : undefined;
 
         results.push({
           input: testCase.input,
-          expected: testCase.expected,
+          expected,
           actual,
           passed,
-          error: runtimeError
+          error: runtimeError ?? mismatchError
         });
       }
 

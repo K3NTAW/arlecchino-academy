@@ -352,7 +352,9 @@ export function createApp(aiProvider: AIProvider, db: DatabaseService, options: 
             })
           : await db.getProgressStats().then((stats) => ({
               gainedXp: 0,
+              gainedCurrency: 0,
               totalXp: stats.xp,
+              totalCurrency: stats.currency,
               level: stats.level,
               streakDays: stats.streakDays
             }));

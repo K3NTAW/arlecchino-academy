@@ -11,6 +11,17 @@ type GenerateResponse = {
   qualityIssues: string[];
 };
 
+export type DashboardResponse = {
+  xp: number;
+  currency: number;
+  documentCount: number;
+  masteryPercent: number;
+  streakDays: number;
+  level: string;
+  recentLesson: { id: number; title: string } | null;
+  recentLessons: Array<{ id: number; title: string; createdAt: string }>;
+};
+
 async function readError(response: Response, fallbackMessage: string): Promise<Error> {
   try {
     const errorBody = (await response.json()) as ApiErrorBody;
@@ -108,6 +119,10 @@ export async function fetchLessons(input: {
     token: input.token,
     signal: input.signal
   });
+}
+
+export async function fetchDashboard(token: string, signal?: AbortSignal): Promise<DashboardResponse> {
+  return apiFetch<DashboardResponse>("/api/dashboard", { token, signal });
 }
 
 export async function fetchLessonById(

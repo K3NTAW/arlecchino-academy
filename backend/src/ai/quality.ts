@@ -29,11 +29,42 @@ export function validateChallengeQuality(bundle: LessonBundle, sourceText?: stri
 
   for (const challenge of bundle.challenges) {
     if (challenge.type === "coding") {
+      const questionLower = challenge.question.toLowerCase();
+      const hasRunnableVerb = /\b(complete|fill|implement|fix|correct|write|finish)\b/.test(questionLower);
+      const hasNonRunnableVerb = /\b(explain|describe|why|predict)\b/.test(questionLower);
+      const hasInputContract = /\binput\b/.test(questionLower);
+      const hasOutputContract = /\boutput\b/.test(questionLower);
+
+      if (!hasRunnableVerb || hasNonRunnableVerb) {
+        issues.push(`Coding challenge ${challenge.id} must be a runnable complete/fix task.`);
+      }
+      if (!hasInputContract || !hasOutputContract) {
+        issues.push(`Coding challenge ${challenge.id} must specify explicit input and output format.`);
+      }
       if (!challenge.solution.includes("return") && !challenge.solution.includes("print")) {
         issues.push(`Coding challenge ${challenge.id} has weak solution signal.`);
       }
       if (challenge.testCases.length === 0) {
         issues.push(`Coding challenge ${challenge.id} must include test cases.`);
+      }
+      for (const [index, testCase] of challenge.testCases.entries()) {
+        if (testCase.expected.trim().length === 0) {
+          issues.push(`Coding challenge ${challenge.id} test case ${index + 1} has empty expected output.`);
+        }
+        if (testCase.input.trim().length === 0 && testCase.expected.trim().length === 0) {
+          issues.push(`Coding challenge ${challenge.id} test case ${index + 1} is empty.`);
+        }
+      }
+      const questionMentionsString = /\bstring\b/.test(questionLower);
+      if (questionMentionsString) {
+        const numericOnlyCases = challenge.testCases.every(
+          (tc) =>
+            /^[\d\s.-]+$/.test(tc.input.trim()) &&
+            /^[\d\s.-]+$/.test(tc.expected.trim())
+        );
+        if (numericOnlyCases) {
+          issues.push(`Coding challenge ${challenge.id} question/test-case mismatch: string-focused prompt with numeric-only cases.`);
+        }
       }
     }
 

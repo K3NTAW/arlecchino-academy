@@ -71,6 +71,7 @@ const fakeDb = {
   async getDashboardStats() {
     return {
       xp: 0,
+      currency: 0,
       documentCount: 0,
       masteryPercent: 0,
       streakDays: 0,
@@ -83,6 +84,7 @@ const fakeDb = {
     return {
       dashboard: {
         xp: 0,
+        currency: 0,
         documentCount: 0,
         masteryPercent: 0,
         streakDays: 0,
@@ -92,6 +94,7 @@ const fakeDb = {
       },
       progress: {
         xp: 0,
+        currency: 0,
         level: "Fledgling",
         masteryPercent: 0,
         streakDays: 0,
@@ -110,6 +113,7 @@ const fakeDb = {
   async getProgressStats() {
     return {
       xp: 0,
+      currency: 0,
       level: "Fledgling",
       masteryPercent: 0,
       streakDays: 0,
@@ -155,7 +159,7 @@ const fakeDb = {
     };
   },
   async saveAttempt() {
-    return { gainedXp: 10, totalXp: 10, level: "Fledgling", streakDays: 1 };
+    return { gainedXp: 100, gainedCurrency: 25, totalXp: 100, totalCurrency: 25, level: "Apprentice", streakDays: 1 };
   }
 } as unknown as DatabaseService;
 
@@ -222,6 +226,7 @@ describe("backend app", () => {
     expect(res.body.isCorrect).toBe(true);
     expect(res.body.evaluation.type).toBe("mcq");
     expect(res.body.evaluation.correctIndex).toBe(0);
+    expect(res.body.gainedCurrency).toBeGreaterThanOrEqual(0);
   });
 
   it("runs coding checks without awarding XP on check intent", async () => {
@@ -238,6 +243,7 @@ describe("backend app", () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.intent).toBe("check");
     expect(res.body.gainedXp).toBe(0);
+    expect(res.body.gainedCurrency).toBe(0);
     expect(res.body.evaluation.type).toBe("coding");
     expect(Array.isArray(res.body.evaluation.testResults)).toBe(true);
   });

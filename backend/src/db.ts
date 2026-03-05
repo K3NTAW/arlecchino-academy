@@ -20,6 +20,7 @@ type StoredChallenge = {
 
 type DashboardStats = {
   xp: number;
+  currency: number;
   documentCount: number;
   masteryPercent: number;
   streakDays: number;
@@ -30,6 +31,7 @@ type DashboardStats = {
 
 type ProgressStats = {
   xp: number;
+  currency: number;
   level: string;
   masteryPercent: number;
   streakDays: number;
@@ -78,6 +80,80 @@ function badgeKeysFromXp(xp: number): string[] {
 
 function dateOnlyUtc(value: Date): string {
   return value.toISOString().slice(0, 10);
+}
+
+function ensureRunnableCodingQuestion(question: string): string {
+  const trimmed = question.trim();
+  const nonRunnable = /\b(explain|describe|predict|what\s+will\s+be\s+the\s+output)\b/i.test(trimmed);
+  const hasInput = /\binput\b/i.test(trimmed);
+  const hasOutput = /\boutput\b/i.test(trimmed);
+  const hasTaskVerb = /\b(complete|fill|implement|fix|correct|write|finish)\b/i.test(trimmed);
+  const taskLine = hasTaskVerb && !nonRunnable
+    ? trimmed
+    : "Fix or complete the Java snippet so it satisfies all provided test cases.";
+  const inputLine = hasInput ? "" : "Input: read from standard input as described by each test case.";
+  const outputLine = hasOutput ? "" : "Output: print exactly the expected output for each test case.";
+  return [taskLine, inputLine, outputLine].filter(Boolean).join("\n");
+}
+
+function ensureRunnableJavaCode(value: string): string {
+  const trimmed = value.trim();
+  if (/(?:public\s+)?class\s+[A-Za-z_][A-Za-z0-9_]*/.test(trimmed)) {
+    return trimmed;
+  }
+  const body = trimmed.length > 0 ? trimmed : "// TODO: implement solution";
+  return `public class Main {\n  public static void main(String[] args) {\n${body
+    .split("\n")
+    .map((line) => `    ${line}`)
+    .join("\n")}\n  }\n}`;
+}
+
+function normalizeCodingPayload(payload: Record<string, unknown>): { next: Record<string, unknown>; changed: boolean } {
+  const next = { ...payload };
+  let changed = false;
+
+  const currentQuestion = String(next.question ?? "");
+  const normalizedQuestion = ensureRunnableCodingQuestion(currentQuestion);
+  if (normalizedQuestion !== currentQuestion) {
+    next.question = normalizedQuestion;
+    changed = true;
+  }
+
+  const starterCode = ensureRunnableJavaCode(String(next.starterCode ?? ""));
+  if (starterCode !== String(next.starterCode ?? "")) {
+    next.starterCode = starterCode;
+    changed = true;
+  }
+
+  const solution = ensureRunnableJavaCode(String(next.solution ?? ""));
+  if (solution !== String(next.solution ?? "")) {
+    next.solution = solution;
+    changed = true;
+  }
+
+  const testCasesRaw = Array.isArray(next.testCases) ? next.testCases : [];
+  const testCases = testCasesRaw
+    .map((testCase) => {
+      const row = typeof testCase === "object" && testCase !== null ? (testCase as Record<string, unknown>) : {};
+      const input = String(row.input ?? "");
+      const expectedRaw = String(row.expected ?? "");
+      return {
+        input,
+        expected: expectedRaw.length > 0 ? expectedRaw : input
+      };
+    })
+    .filter((row) => row.input.length > 0 || row.expected.length > 0);
+
+  if (testCases.length === 0) {
+    testCases.push({ input: "1", expected: "1" });
+    changed = true;
+  }
+  if (JSON.stringify(testCases) !== JSON.stringify(next.testCases ?? [])) {
+    next.testCases = testCases;
+    changed = true;
+  }
+
+  return { next, changed };
 }
 
 export class DatabaseService {
@@ -148,6 +224,7 @@ export class DatabaseService {
       CREATE TABLE IF NOT EXISTS profile_progress (
         id SMALLINT PRIMARY KEY CHECK (id = 1),
         xp INT NOT NULL DEFAULT 0,
+        currency INT NOT NULL DEFAULT 0,
         level TEXT NOT NULL DEFAULT 'Fledgling',
         streak_days INT NOT NULL DEFAULT 0,
         last_activity_date DATE,
@@ -167,6 +244,22 @@ export class DatabaseService {
     `);
 
     await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS currency_events (
+        id BIGSERIAL PRIMARY KEY,
+        source TEXT NOT NULL,
+        amount INT NOT NULL,
+        challenge_id BIGINT REFERENCES challenges(id) ON DELETE SET NULL,
+        lesson_id BIGINT REFERENCES lessons(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      ALTER TABLE profile_progress
+      ADD COLUMN IF NOT EXISTS currency INT NOT NULL DEFAULT 0;
+    `);
+
+    await this.pool.query(`
       CREATE TABLE IF NOT EXISTS badge_unlocks (
         id BIGSERIAL PRIMARY KEY,
         badge_key TEXT NOT NULL UNIQUE,
@@ -179,6 +272,30 @@ export class DatabaseService {
       VALUES (1, 0, 'Fledgling', 0)
       ON CONFLICT (id) DO NOTHING;
     `);
+
+    await this.repairExistingCodingChallenges();
+  }
+
+  private async repairExistingCodingChallenges(): Promise<void> {
+    const codingRes = await this.pool.query(
+      `
+        SELECT id, payload
+        FROM challenges
+        WHERE type = 'coding'
+      `
+    );
+    for (const row of codingRes.rows) {
+      const challengeId = Number(row.id);
+      const payload = typeof row.payload === "object" && row.payload !== null ? (row.payload as Record<string, unknown>) : {};
+      const { next, changed } = normalizeCodingPayload(payload);
+      if (!changed) {
+        continue;
+      }
+      await this.pool.query(`UPDATE challenges SET payload = $2::jsonb WHERE id = $1`, [
+        challengeId,
+        JSON.stringify(next)
+      ]);
+    }
   }
 
   async findLessonByHashAndLanguage(hash: string, language: "en" | "sr"): Promise<{
@@ -327,7 +444,7 @@ export class DatabaseService {
       LIMIT 5
     `);
     const progressRes = await this.pool.query(`
-      SELECT xp, level, streak_days
+      SELECT xp, currency, level, streak_days
       FROM profile_progress
       WHERE id = 1
       LIMIT 1
@@ -337,11 +454,13 @@ export class DatabaseService {
     const correctAttempts = Number(attempts.rows[0]?.correct ?? 0);
     const masteryPercent = totalAttempts > 0 ? Math.round((correctAttempts / totalAttempts) * 100) : 0;
     const xp = Number(progressRes.rows[0]?.xp ?? 0);
+    const currency = Number(progressRes.rows[0]?.currency ?? 0);
     const level = String(progressRes.rows[0]?.level ?? levelFromXp(xp));
     const streakDays = Number(progressRes.rows[0]?.streak_days ?? 0);
 
     return {
       xp,
+      currency,
       documentCount: Number(docs.rows[0]?.count ?? 0),
       masteryPercent,
       streakDays,
@@ -375,6 +494,7 @@ export class DatabaseService {
 
     return {
       xp: dashboard.xp,
+      currency: dashboard.currency,
       level: dashboard.level,
       masteryPercent: dashboard.masteryPercent,
       streakDays: dashboard.streakDays,
@@ -503,8 +623,16 @@ export class DatabaseService {
       answerPayload?: unknown;
       evaluationPayload?: unknown;
     }
-  ): Promise<{ gainedXp: number; totalXp: number; level: string; streakDays: number }> {
-    const gainedXp = isCorrect ? 100 : 10;
+  ): Promise<{
+    gainedXp: number;
+    gainedCurrency: number;
+    totalXp: number;
+    totalCurrency: number;
+    level: string;
+    streakDays: number;
+  }> {
+    const gainedXp = isCorrect ? 100 : 0;
+    const gainedCurrency = isCorrect ? 25 : 0;
     const activityDate = dateOnlyUtc(new Date());
     const client = await this.pool.connect();
     try {
@@ -523,13 +651,14 @@ export class DatabaseService {
       );
       const progressRes = await client.query(
         `
-          SELECT xp, streak_days, last_activity_date
+          SELECT xp, currency, streak_days, last_activity_date
           FROM profile_progress
           WHERE id = 1
           FOR UPDATE
         `
       );
       const currentXp = Number(progressRes.rows[0]?.xp ?? 0);
+      const currentCurrency = Number(progressRes.rows[0]?.currency ?? 0);
       const currentStreakDays = Number(progressRes.rows[0]?.streak_days ?? 0);
       const lastActivityDate = progressRes.rows[0]?.last_activity_date
         ? String(progressRes.rows[0].last_activity_date)
@@ -552,14 +681,15 @@ export class DatabaseService {
       }
 
       const totalXp = currentXp + gainedXp;
+      const totalCurrency = currentCurrency + gainedCurrency;
       const level = levelFromXp(totalXp);
       await client.query(
         `
           UPDATE profile_progress
-          SET xp = $1, level = $2, streak_days = $3, last_activity_date = $4, updated_at = NOW()
+          SET xp = $1, currency = $2, level = $3, streak_days = $4, last_activity_date = $5, updated_at = NOW()
           WHERE id = 1
         `,
-        [totalXp, level, nextStreakDays, activityDate]
+        [totalXp, totalCurrency, level, nextStreakDays, activityDate]
       );
 
       const challengeRes = await client.query(`SELECT lesson_id FROM challenges WHERE id = $1 LIMIT 1`, [
@@ -572,6 +702,13 @@ export class DatabaseService {
           VALUES ($1, $2, $3, $4)
         `,
         [isCorrect ? "challenge.correct" : "challenge.incorrect", gainedXp, challengeId, lessonId]
+      );
+      await client.query(
+        `
+          INSERT INTO currency_events (source, amount, challenge_id, lesson_id)
+          VALUES ($1, $2, $3, $4)
+        `,
+        [isCorrect ? "challenge.correct" : "challenge.incorrect", gainedCurrency, challengeId, lessonId]
       );
 
       for (const badgeKey of badgeKeysFromXp(totalXp)) {
@@ -586,7 +723,7 @@ export class DatabaseService {
       }
 
       await client.query("COMMIT");
-      return { gainedXp, totalXp, level, streakDays: nextStreakDays };
+      return { gainedXp, gainedCurrency, totalXp, totalCurrency, level, streakDays: nextStreakDays };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

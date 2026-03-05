@@ -22,7 +22,7 @@ describe("validateChallengeQuality", () => {
         {
           id: "c1",
           type: "coding",
-          question: "Write method",
+          question: "Complete the code. Input: two integers from stdin. Output: print their sum.",
           starterCode: "class Main {}",
           solution: "return a + b;",
           hint: "Use return.",

@@ -205,6 +205,31 @@ function toStringArray(values: unknown, minLength: number, fallbackPrefix: strin
   return result.slice(0, Math.max(minLength, result.length));
 }
 
+function isNonRunnableCodingPrompt(question: string): boolean {
+  return /\b(explain|describe|what\s+will\s+be\s+the\s+output|predict\s+the\s+output|why)\b/i.test(question);
+}
+
+function normalizeCodingQuestion(question: string): string {
+  if (!isNonRunnableCodingPrompt(question)) {
+    return question;
+  }
+  return "Fix or complete the provided Java snippet so it produces the expected output for all listed test cases.";
+}
+
+function ensureJavaStarterCode(starterCode: string): string {
+  const trimmed = starterCode.trim();
+  if (/(?:public\s+)?class\s+[A-Za-z_][A-Za-z0-9_]*/.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\s*(import\s+[A-Za-z0-9_.*]+\s*;\s*)+/m.test(trimmed)) {
+    return `${trimmed}\n\npublic class Main {\n  public static void main(String[] args) {\n    // TODO: implement solution\n  }\n}`;
+  }
+  return `public class Main {\n  public static void main(String[] args) {\n${trimmed
+    .split("\n")
+    .map((line) => `    ${line}`)
+    .join("\n")}\n  }\n}`;
+}
+
 function normalizeChallengeObject(value: unknown, index: number): Record<string, unknown> {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   const options = Array.isArray(source.options) ? source.options.map((v) => String(v ?? "").trim()).filter(Boolean) : [];
@@ -229,13 +254,21 @@ function normalizeChallengeObject(value: unknown, index: number): Record<string,
     };
   }
 
-  const starterCode = String(
+  const starterCode = ensureJavaStarterCode(
+    String(
     source.starterCode ??
       source.codeTemplate ??
       source.template ??
-      "def solve(input_value):\n    # TODO\n    return input_value"
-  ).trim();
-  const solution = String(source.solution ?? source.answer ?? "def solve(input_value):\n    return input_value").trim();
+      "public class Main {\n  public static void main(String[] args) {\n    // TODO: read input and print output\n  }\n}"
+  ).trim()
+  );
+  const solution = ensureJavaStarterCode(
+    String(
+      source.solution ??
+        source.answer ??
+        "public class Main {\n  public static void main(String[] args) {\n    // implement solution\n  }\n}"
+    ).trim()
+  );
   const hint = String(source.hint ?? "Break the problem into smaller steps.").trim();
   const ahaInsight = String(source.ahaInsight ?? source.insight ?? "You learned how to translate concept into code.").trim();
   const rawTestCases = Array.isArray(source.testCases) ? source.testCases : [];
@@ -256,7 +289,7 @@ function normalizeChallengeObject(value: unknown, index: number): Record<string,
   return {
     id,
     type: "coding",
-    question,
+    question: normalizeCodingQuestion(question),
     starterCode,
     solution,
     hint,
@@ -474,6 +507,15 @@ ${contextText}
 - For EACH named method, include at least one "what is output / what does this method do" challenge.
 - For EACH explicit comparison, include at least one "which would you choose and why" challenge.
 - For EACH code example, include at least one "output or bug spotting" challenge.
+- Coding challenges must ONLY be runnable implementation tasks:
+  1) complete/fill missing code, or
+  2) fix broken code.
+- DO NOT produce coding prompts that ask only for explanation/description/prediction.
+- Every coding challenge must include explicit machine-checkable I/O contract in the question text:
+  - input format
+  - output format
+  - deterministic expected behavior
+- Coding starterCode and solution must be Java with a runnable class and main method.
 - each MCQ needs exactly 4 options, correctIndex, explanation, whyWrongExplanations (3 items).
 - each coding challenge needs starterCode, solution, hint, ahaInsight, and testCases.
 - ensure explicit coverage of: ${JSON.stringify(coverageChecklist)}
