@@ -144,6 +144,60 @@ function ensureRunnableJavaCode(value: string): string {
     .join("\n")}\n  }\n}`;
 }
 
+function isPlaceholderValue(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.length === 0 ||
+    normalized === "example" ||
+    normalized === "sample" ||
+    normalized === "input example" ||
+    normalized === "expected output example" ||
+    normalized === "todo"
+  );
+}
+
+function fallbackCodingTestCases(question: string): Array<{ input: string; expected: string }> {
+  const q = question.toLowerCase();
+
+  if (/\b(string|strings)\b/.test(q) && /\b(combine|concat|join|append|connect|merge)\b/.test(q)) {
+    return [
+      { input: "exam\nple", expected: "example" },
+      { input: "fire\nfly", expected: "firefly" },
+      { input: "moon\nlight", expected: "moonlight" }
+    ];
+  }
+
+  if (/\barray\b/.test(q) && /\b(sum|total)\b/.test(q)) {
+    return [
+      { input: "5\n1 2 3 4 5", expected: "15" },
+      { input: "4\n10 -2 7 0", expected: "15" },
+      { input: "3\n-5 2 1", expected: "-2" }
+    ];
+  }
+
+  if (/\barray\b/.test(q) && /\b(max|largest)\b/.test(q)) {
+    return [
+      { input: "5\n1 9 3 7 2", expected: "9" },
+      { input: "4\n-10 -3 -20 -4", expected: "-3" },
+      { input: "1\n42", expected: "42" }
+    ];
+  }
+
+  if (/\bstring\b/.test(q) && /\breverse\b/.test(q)) {
+    return [
+      { input: "example", expected: "elpmaxe" },
+      { input: "java", expected: "avaj" },
+      { input: "abc123", expected: "321cba" }
+    ];
+  }
+
+  return [
+    { input: "alpha", expected: "alpha" },
+    { input: "beta", expected: "beta" },
+    { input: "gamma", expected: "gamma" }
+  ];
+}
+
 function normalizeCodingPayload(payload: Record<string, unknown>): { next: Record<string, unknown>; changed: boolean } {
   const next = { ...payload };
   let changed = false;
@@ -168,20 +222,20 @@ function normalizeCodingPayload(payload: Record<string, unknown>): { next: Recor
   }
 
   const testCasesRaw = Array.isArray(next.testCases) ? next.testCases : [];
-  const testCases = testCasesRaw
+  let testCases = testCasesRaw
     .map((testCase) => {
       const row = typeof testCase === "object" && testCase !== null ? (testCase as Record<string, unknown>) : {};
-      const input = String(row.input ?? "");
-      const expectedRaw = String(row.expected ?? "");
+      const input = String(row.input ?? "").trim();
+      const expectedRaw = String(row.expected ?? "").trim();
       return {
         input,
         expected: expectedRaw.length > 0 ? expectedRaw : input
       };
     })
-    .filter((row) => row.input.length > 0 || row.expected.length > 0);
+    .filter((row) => !isPlaceholderValue(row.input) && !isPlaceholderValue(row.expected));
 
-  if (testCases.length === 0) {
-    testCases.push({ input: "1", expected: "1" });
+  if (testCases.length < 2) {
+    testCases = fallbackCodingTestCases(currentQuestion);
     changed = true;
   }
   if (JSON.stringify(testCases) !== JSON.stringify(next.testCases ?? [])) {

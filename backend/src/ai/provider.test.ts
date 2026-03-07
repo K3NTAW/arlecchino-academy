@@ -59,5 +59,36 @@ describe("normalizeLessonBundleShape", () => {
     expect(normalized.challenges[1]).toHaveProperty("hint");
     expect(normalized.challenges[1]).toHaveProperty("ahaInsight");
     expect(normalized.challenges[1]).toHaveProperty("testCases");
+    expect((normalized.challenges[1].testCases as unknown[]).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("replaces placeholder coding test cases with concrete variants", () => {
+    const normalized = normalizeLessonBundleShape({
+      lesson: {
+        title: "String combine",
+        summary: "Summary",
+        language: "en",
+        keyTerms: [{ term: "String", definition: "text object" }],
+        insights: [{ headline: "Concat", explanation: "combine strings" }]
+      },
+      challenges: [
+        {
+          type: "coding",
+          question: "Combine two strings. Input: two strings. Output: combined string.",
+          starterCode: "class Main {}",
+          solution: "class Main {}",
+          hint: "Use +",
+          ahaInsight: "Concatenation",
+          testCases: [{ input: "example", expected: "example" }]
+        }
+      ]
+    }) as {
+      challenges: Array<{ testCases: Array<{ input: string; expected: string }> }>;
+    };
+
+    const testCases = normalized.challenges[0].testCases;
+    expect(testCases.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(testCases.map((tc) => tc.input.trim())).size).toBeGreaterThanOrEqual(2);
+    expect(testCases.every((tc) => tc.input.trim().length > 0 && tc.expected.trim().length > 0)).toBe(true);
   });
 });

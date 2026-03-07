@@ -47,6 +47,12 @@ export function validateChallengeQuality(bundle: LessonBundle, sourceText?: stri
       if (challenge.testCases.length === 0) {
         issues.push(`Coding challenge ${challenge.id} must include test cases.`);
       }
+      if (challenge.testCases.length < 2) {
+        issues.push(`Coding challenge ${challenge.id} must include at least two varied test cases.`);
+      }
+      const placeholderPattern = /^(example|sample|input example|expected output example|todo)$/i;
+      const uniqueInputs = new Set(challenge.testCases.map((tc) => tc.input.trim())).size;
+      const uniqueExpected = new Set(challenge.testCases.map((tc) => tc.expected.trim())).size;
       for (const [index, testCase] of challenge.testCases.entries()) {
         if (testCase.expected.trim().length === 0) {
           issues.push(`Coding challenge ${challenge.id} test case ${index + 1} has empty expected output.`);
@@ -54,6 +60,12 @@ export function validateChallengeQuality(bundle: LessonBundle, sourceText?: stri
         if (testCase.input.trim().length === 0 && testCase.expected.trim().length === 0) {
           issues.push(`Coding challenge ${challenge.id} test case ${index + 1} is empty.`);
         }
+        if (placeholderPattern.test(testCase.input.trim()) || placeholderPattern.test(testCase.expected.trim())) {
+          issues.push(`Coding challenge ${challenge.id} test case ${index + 1} uses placeholder values.`);
+        }
+      }
+      if (uniqueInputs < 2 || uniqueExpected < 2) {
+        issues.push(`Coding challenge ${challenge.id} test cases are not diverse enough (hardcoded output risk).`);
       }
       const questionMentionsString = /\bstring\b/.test(questionLower);
       if (questionMentionsString) {
@@ -64,6 +76,18 @@ export function validateChallengeQuality(bundle: LessonBundle, sourceText?: stri
         );
         if (numericOnlyCases) {
           issues.push(`Coding challenge ${challenge.id} question/test-case mismatch: string-focused prompt with numeric-only cases.`);
+        }
+      }
+      const questionMentionsTwoStrings = /\b(two|2)\s+strings?\b/.test(questionLower);
+      if (questionMentionsTwoStrings) {
+        const hasTwoPartsPerInput = challenge.testCases.every((tc) => {
+          const input = tc.input.trim();
+          const lineParts = input.split(/\n+/).filter(Boolean).length;
+          const tokenParts = input.split(/\s+/).filter(Boolean).length;
+          return lineParts >= 2 || tokenParts >= 2;
+        });
+        if (!hasTwoPartsPerInput) {
+          issues.push(`Coding challenge ${challenge.id} mentions two strings but test-case inputs do not provide two values.`);
         }
       }
     }

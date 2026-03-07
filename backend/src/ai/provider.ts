@@ -216,6 +216,60 @@ function normalizeCodingQuestion(question: string): string {
   return "Fix or complete the provided Java snippet so it produces the expected output for all listed test cases.";
 }
 
+function isPlaceholderValue(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.length === 0 ||
+    normalized === "example" ||
+    normalized === "sample" ||
+    normalized === "input example" ||
+    normalized === "expected output example" ||
+    normalized === "todo"
+  );
+}
+
+function fallbackCodingTestCases(question: string): Array<{ input: string; expected: string }> {
+  const q = question.toLowerCase();
+
+  if (/\b(string|strings)\b/.test(q) && /\b(combine|concat|join|append|connect|merge)\b/.test(q)) {
+    return [
+      { input: "exam\nple", expected: "example" },
+      { input: "fire\nfly", expected: "firefly" },
+      { input: "moon\nlight", expected: "moonlight" }
+    ];
+  }
+
+  if (/\barray\b/.test(q) && /\b(sum|total)\b/.test(q)) {
+    return [
+      { input: "5\n1 2 3 4 5", expected: "15" },
+      { input: "4\n10 -2 7 0", expected: "15" },
+      { input: "3\n-5 2 1", expected: "-2" }
+    ];
+  }
+
+  if (/\barray\b/.test(q) && /\b(max|largest)\b/.test(q)) {
+    return [
+      { input: "5\n1 9 3 7 2", expected: "9" },
+      { input: "4\n-10 -3 -20 -4", expected: "-3" },
+      { input: "1\n42", expected: "42" }
+    ];
+  }
+
+  if (/\bstring\b/.test(q) && /\breverse\b/.test(q)) {
+    return [
+      { input: "example", expected: "elpmaxe" },
+      { input: "java", expected: "avaj" },
+      { input: "abc123", expected: "321cba" }
+    ];
+  }
+
+  return [
+    { input: "alpha", expected: "alpha" },
+    { input: "beta", expected: "beta" },
+    { input: "gamma", expected: "gamma" }
+  ];
+}
+
 function ensureJavaStarterCode(starterCode: string): string {
   const trimmed = starterCode.trim();
   if (/(?:public\s+)?class\s+[A-Za-z_][A-Za-z0-9_]*/.test(trimmed)) {
@@ -272,18 +326,18 @@ function normalizeChallengeObject(value: unknown, index: number): Record<string,
   const hint = String(source.hint ?? "Break the problem into smaller steps.").trim();
   const ahaInsight = String(source.ahaInsight ?? source.insight ?? "You learned how to translate concept into code.").trim();
   const rawTestCases = Array.isArray(source.testCases) ? source.testCases : [];
-  const testCases = rawTestCases
+  let testCases = rawTestCases
     .map((testCase) => {
       const t = typeof testCase === "object" && testCase !== null ? (testCase as Record<string, unknown>) : {};
       return {
-        input: String(t.input ?? ""),
-        expected: String(t.expected ?? "")
+        input: String(t.input ?? "").trim(),
+        expected: String(t.expected ?? "").trim()
       };
     })
-    .filter((tc) => tc.input.length > 0 || tc.expected.length > 0);
+    .filter((tc) => !isPlaceholderValue(tc.input) && !isPlaceholderValue(tc.expected));
 
-  if (testCases.length === 0) {
-    testCases.push({ input: "example", expected: "example" });
+  if (testCases.length < 2) {
+    testCases = fallbackCodingTestCases(question);
   }
 
   return {
@@ -518,6 +572,9 @@ ${contextText}
 - Coding starterCode and solution must be Java with a runnable class and main method.
 - each MCQ needs exactly 4 options, correctIndex, explanation, whyWrongExplanations (3 items).
 - each coding challenge needs starterCode, solution, hint, ahaInsight, and testCases.
+- each coding challenge must have at least 3 concrete test cases.
+- test cases must be realistic and task-correlated (no placeholders like "example", "sample", or generic boilerplate values).
+- test cases must use varied inputs so hardcoded print statements cannot pass all tests.
 - ensure explicit coverage of: ${JSON.stringify(coverageChecklist)}
 - use this full inventory as a checklist:
 ${JSON.stringify(inventory)}

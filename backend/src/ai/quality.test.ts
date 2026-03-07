@@ -27,7 +27,10 @@ describe("validateChallengeQuality", () => {
           solution: "return a + b;",
           hint: "Use return.",
           ahaInsight: "Methods can return values.",
-          testCases: [{ input: "1 2", expected: "3" }]
+          testCases: [
+            { input: "1 2", expected: "3" },
+            { input: "10 -2", expected: "8" }
+          ]
         },
         {
           id: "m1",
