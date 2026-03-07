@@ -18,6 +18,7 @@ import { errorMiddleware } from "./error.middleware";
 import { logError, logInfo } from "./logger";
 import { requestIdMiddleware } from "./request-id.middleware";
 import { extractPdfContent } from "./pdf/pdf-extractor";
+import { extractDocxContent } from "./docx/docx-extractor";
 import type { AIProvider } from "./ai/provider";
 import { validateChallengeQuality } from "./ai/quality";
 import type { RequestWithId } from "./types";
@@ -47,6 +48,21 @@ function ensureAuthorized(req: express.Request, res: express.Response): boolean 
 type CreateAppOptions = {
   javaEvaluator?: JavaEvaluator;
 };
+
+function detectUploadType(file: Express.Multer.File): "pdf" | "docx" | null {
+  const fileName = file.originalname.toLowerCase();
+  const mimeType = (file.mimetype ?? "").toLowerCase();
+  if (mimeType === "application/pdf" || fileName.endsWith(".pdf")) {
+    return "pdf";
+  }
+  if (
+    mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    fileName.endsWith(".docx")
+  ) {
+    return "docx";
+  }
+  return null;
+}
 
 export function createApp(aiProvider: AIProvider, db: DatabaseService, options: CreateAppOptions = {}) {
   const app = express();
@@ -89,12 +105,20 @@ export function createApp(aiProvider: AIProvider, db: DatabaseService, options: 
       }
       const requestId = (req as RequestWithId).requestId;
       if (!req.file) {
-        res.status(400).json({ message: "PDF file is required." });
+        res.status(400).json({ message: "Document file is required." });
         return;
       }
-      const extracted = await extractPdfContent(req.file.buffer);
-      logInfo("pdf.extracted", {
+      const uploadType = detectUploadType(req.file);
+      if (!uploadType) {
+        res.status(400).json({ message: "Only PDF or DOCX files up to 20MB are allowed." });
+        return;
+      }
+
+      const extracted =
+        uploadType === "pdf" ? await extractPdfContent(req.file.buffer) : await extractDocxContent(req.file.buffer);
+      logInfo("document.extracted", {
         requestId,
+        uploadType,
         textLength: extracted.text.length,
         usedOcrFallback: extracted.usedOcrFallback
       });

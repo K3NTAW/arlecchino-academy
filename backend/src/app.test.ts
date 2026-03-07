@@ -337,6 +337,15 @@ describe("backend app", () => {
     expect(res.body).toHaveProperty("usedOcrFallback");
   });
 
+  it("accepts DOCX upload and returns extraction payload", async () => {
+    const res = await request(app)
+      .post("/api/upload")
+      .set("Authorization", `Bearer ${env.ACCESS_TOKEN}`)
+      .attach("pdf", Buffer.from("fake-docx"), "sample.docx");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("text");
+  });
+
   it("returns lesson details with full interactive challenges", async () => {
     const res = await request(app).get("/api/lessons/1").set("Authorization", `Bearer ${env.ACCESS_TOKEN}`);
     expect(res.status).toBe(200);

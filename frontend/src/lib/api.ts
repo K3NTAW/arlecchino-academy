@@ -81,7 +81,7 @@ export async function logout(token: string): Promise<{ ok: boolean }> {
   });
 }
 
-export async function uploadPdf(token: string, file: File): Promise<UploadExtracted> {
+export async function uploadDocument(token: string, file: File): Promise<UploadExtracted> {
   const formData = new FormData();
   formData.append("pdf", file);
   return apiFetch<UploadExtracted>("/api/upload", {
@@ -90,6 +90,9 @@ export async function uploadPdf(token: string, file: File): Promise<UploadExtrac
     body: formData
   });
 }
+
+// Backward-compatible export for existing callers.
+export const uploadPdf = uploadDocument;
 
 export async function generateLesson(input: {
   token: string;

@@ -2,11 +2,17 @@ import { FormEvent, useState } from "react";
 import { ArrowLeft, BookOpenText } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { generateLesson, uploadPdf } from "../lib/api";
+import { generateLesson, uploadDocument } from "../lib/api";
 import { ArlecchinoLoader } from "../components/ArlecchinoLoader";
 import { useAppStore } from "../store/appStore";
 
 type UploadPhase = "idle" | "uploading" | "generating" | "done" | "error";
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+function isAllowedDocument(file: File): boolean {
+  const fileName = file.name.toLowerCase();
+  return file.type === "application/pdf" || file.type === DOCX_MIME || fileName.endsWith(".pdf") || fileName.endsWith(".docx");
+}
 
 export function UploadPage() {
   const token = useAppStore((state) => state.token);
@@ -29,7 +35,7 @@ export function UploadPage() {
     setError(null);
     try {
       setPhase("uploading");
-      const extracted = await uploadPdf(token, file);
+      const extracted = await uploadDocument(token, file);
       setPhase("generating");
       setGenerating(true);
       const generated = await generateLesson({
@@ -69,7 +75,7 @@ export function UploadPage() {
       </button>
       <header>
         <h1>Submit a New Tome</h1>
-        <p>Upload your lecture PDF. The Director will study it and prepare your challenges.</p>
+        <p>Upload your lecture PDF or DOCX. The Director will study it and prepare your challenges.</p>
       </header>
 
       <form className="upload-form" onSubmit={onSubmit}>
@@ -81,11 +87,11 @@ export function UploadPage() {
           placeholder="Mission: Polymorphism"
         />
 
-        <label htmlFor="pdf-file">PDF Upload</label>
+        <label htmlFor="pdf-file">Document Upload</label>
         <label className={`drop-zone ${file ? "selected" : ""}`} htmlFor="pdf-file">
           <BookOpenText size={24} />
           <span>Drop your tome here, or click to summon it</span>
-          <small>PDF only · max 20MB</small>
+          <small>PDF or DOCX · max 20MB</small>
           {file ? (
             <strong>
               {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
@@ -95,11 +101,11 @@ export function UploadPage() {
         <input
           id="pdf-file"
           type="file"
-          accept=".pdf,application/pdf"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={(event) => {
             const next = event.target.files?.[0] ?? null;
-            if (next && (next.type !== "application/pdf" || next.size > 20 * 1024 * 1024)) {
-              setError("Only PDF files up to 20MB are allowed.");
+            if (next && (!isAllowedDocument(next) || next.size > 20 * 1024 * 1024)) {
+              setError("Only PDF or DOCX files up to 20MB are allowed.");
               setFile(null);
               return;
             }
